@@ -35,7 +35,7 @@ app.listen(port, () => {
 // OpenAPI specification endpoint
 app.use('/spec', express.static('./api/openapi.yaml'));
 
-// Standard Express Error Handler (Crucial for catching validation bugs)
+// Express error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   res.status(err.status || 500).json({
     message: err.message,
