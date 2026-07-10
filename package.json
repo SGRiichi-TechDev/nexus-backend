@@ -5,7 +5,7 @@
   "description": "A backend web application server for Project Nexus built using Express running on Node.js",
   "main": "src/server.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --env-file=.env src/server.ts "
   },
@@ -21,6 +21,7 @@
   "homepage": "https://github.com/SGRiichi-TechDev/nexus-backend#readme",
   "dependencies": {
     "express": "^5.2.1",
+    "express-openapi-validator": "^5.6.2",
     "tsx": "^4.23.0"
   },
   "devDependencies": {
@@ -30,6 +31,12 @@
     "nodemon": "^3.1.14",
     "pg": "^8.22.0",
     "ts-node": "^10.9.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "imports": {
+    "#db/*": "./src/db/*",
+    "#controller/*": "./src/controller/*",
+    "#routes/*": "./src/routes/*"
   }
 }
