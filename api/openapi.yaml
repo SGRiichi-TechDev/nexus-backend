@@ -4,9 +4,9 @@ info:
   summary: API for SGRiichi Admin Portal Web Application
   version: 1.0.0
 servers:
-  - url: https://api.sgriichi.com/v1
+  - url: https://api.sgriichi.com/api/v1
     description: Production server
-  - url: https://staging-api.sgriichi.com/v1
+  - url: https://staging-api.sgriichi.com/api/v1
     description: Staging server
 paths:
   /games:
@@ -325,13 +325,13 @@ components:
       type: object
       properties:
         pid:
-          type: integer
+          type: number
           description: Unique identifier for the player
         display_name:
           type: string
           description: The display name of the player
         telegram_id:
-          type: integer
+          type: string
           description: The Telegram ID of the player
         region:
           type: string
