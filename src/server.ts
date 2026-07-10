@@ -1,3 +1,4 @@
+import apiRouter from '#routes/api-router.ts';
 import express, {
   type Express,
   type NextFunction,
@@ -5,8 +6,6 @@ import express, {
   type Response,
 } from 'express';
 import * as OpenApiValidator from 'express-openapi-validator';
-
-import playerRouter from '#routes/player-routes.ts';
 
 const app: Express = express();
 const domain: string = process.env.DOMAIN || 'localhost';
@@ -25,7 +24,7 @@ app.use(
 );
 
 // Register routers
-app.use('/api/v1', playerRouter);
+app.use('/api/v1', apiRouter);
 
 // Start the server
 app.listen(port, () => {
