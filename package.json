@@ -1,0 +1,35 @@
+{
+  "name": "nexus-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A backend web application server for Project Nexus built using Express running on Node.js",
+  "main": "src/server.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch --env-file=.env src/server.ts "
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SGRiichi-TechDev/nexus-backend.git"
+  },
+  "author": "Toby Teo",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SGRiichi-TechDev/nexus-backend/issues"
+  },
+  "homepage": "https://github.com/SGRiichi-TechDev/nexus-backend#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "tsx": "^4.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
+    "nodemon": "^3.1.14",
+    "pg": "^8.22.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^7.0.2"
+  }
+}
