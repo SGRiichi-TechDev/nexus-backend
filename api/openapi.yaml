@@ -174,6 +174,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Player'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
   /players/{id}:
     get:
       summary: Get a player by ID
@@ -191,6 +201,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Player'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
     patch:
       summary: Update a player by ID
       description: 'Update a player by ID. Used to either approve or reject a player registration.'
