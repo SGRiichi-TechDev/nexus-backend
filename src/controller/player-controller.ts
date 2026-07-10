@@ -1,5 +1,5 @@
+import { pool } from '#db/db.ts';
 import { type Request, type Response } from 'express';
-import { pool } from '../db/db.ts';
 
 const playerController = {
   getAllPlayers: async (req: Request, res: Response) => {
