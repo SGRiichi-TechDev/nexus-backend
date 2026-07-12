@@ -7,7 +7,8 @@
   "scripts": {
     "test": "vitest",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx watch --env-file=.env src/server.ts "
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "start": "tsx --env-file=.env src/server.ts"
   },
   "repository": {
     "type": "git",
@@ -20,23 +21,24 @@
   },
   "homepage": "https://github.com/SGRiichi-TechDev/nexus-backend#readme",
   "dependencies": {
+    "drizzle-orm": "^1.0.0-rc.4",
     "express": "^5.2.1",
     "express-openapi-validator": "^5.6.2",
+    "postgres": "^3.4.9",
     "tsx": "^4.23.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.1",
-    "@types/pg": "^8.20.0",
-    "nodemon": "^3.1.14",
-    "pg": "^8.22.0",
-    "ts-node": "^10.9.2",
+    "drizzle-kit": "^1.0.0-rc.4",
+    "supabase": "^2.109.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "imports": {
     "#db/*": "./src/db/*",
     "#controller/*": "./src/controller/*",
-    "#routes/*": "./src/routes/*"
+    "#routes/*": "./src/routes/*",
+    "#drizzle/*": "./drizzle/*"
   }
 }
