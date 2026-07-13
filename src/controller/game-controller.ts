@@ -11,9 +11,12 @@ const gameController = {
     const gameId: number = Number(req.params.id);
 
     try {
-      const game: GameResult | null = await db.query.gameResult.findFirst({
-        where: eq(gameResult.gameId, gameId),
-      });
+      const game: GameResult | undefined = await db
+        .select()
+        .from(gameResult)
+        .where(eq(gameResult.gameId, gameId))
+        .limit(1)
+        .then((results) => results[0]);
 
       if (!game) {
         return res.status(404).json({ error: 'Game not found' });
