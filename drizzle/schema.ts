@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, text, bigint, smallint, integer, boolean, timestamp, date, numeric, jsonb, foreignKey, primaryKey, unique, check } from "drizzle-orm/pg-core"
+import { pgEnum, pgTable, integer, smallint, bigint, text, timestamp, date, boolean, jsonb, numeric, foreignKey, primaryKey, unique, check } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const akaEnum = pgEnum("aka_enum", ["Aka-Ari", "Aka-Nashi"])
@@ -10,6 +10,7 @@ export const influenceFactorEnum = pgEnum("influence_factor_enum", ["individual"
 export const playerStatusEnum = pgEnum("player_status_enum", ["active", "pending", "rejected", "suspended"])
 export const windEnum = pgEnum("wind_enum", ["E", "S", "W", "N"])
 export const yakumanEnum = pgEnum("yakuman_enum", ["KazoeYakuman", "KokushiMusou", "KokushiMusou_13Men", "Daisangen", "SuuAnkou", "SuuAnkou_Tanki", "Shousuushi", "Daisuushi", "Tsuuiisou", "Ryuuiisou", "Chinroutou", "ChuurenPoutou", "Suukantsu", "Tenhou", "Chiihou", "JunsuiChuurenPoutou"])
+export const winTypeEnum = pgEnum("win_type_enum", ["Ron", "Tsumo", "Nagashi Mangan"])
 
 
 export const admin = pgTable.withRLS("admin", {
@@ -32,7 +33,7 @@ export const eventInfo = pgTable.withRLS("event_info", {
 	scale: eventScaleEnum().notNull(),
 	location: text(),
 	influenceFactor: influenceFactorEnum("influence_factor").notNull(),
-	rulesetId: bigint("ruleset_id", { mode: 'number' }).references(() => rulesetInfo.id),
+	rulesetId: bigint("ruleset_id", { mode: 'number' }).references(() => rulesetInfo.rulesetId),
 	numGames: integer("num_games"),
 	totalPlayers: integer("total_players"),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
@@ -57,7 +58,7 @@ export const gameInfo = pgTable.withRLS("game_info", {
 	gameId: bigint("game_id", { mode: 'number' }).primaryKey(),
 	venueId: integer("venue_id").references(() => venue.venueId),
 	modeId: integer("mode_id").references(() => mode.modeId),
-	rulesetId: bigint("ruleset_id", { mode: 'number' }).references(() => rulesetInfo.id),
+	rulesetId: smallint("ruleset_id").references(() => rulesetInfo.rulesetId),
 	recordedByPid: bigint("recorded_by_pid", { mode: 'number' }),
 	createAt: timestamp("create_at").default(sql`CURRENT_TIMESTAMP`),
 	endedAt: timestamp("ended_at"),
@@ -72,6 +73,7 @@ export const gameInfo = pgTable.withRLS("game_info", {
 	isRecorded: boolean("is_recorded"),
 	durationMins: bigint("duration_mins", { mode: 'number' }),
 	leftoverDeposits: integer("leftover_deposits"),
+	umaId: smallint("uma_id"),
 });
 
 export const gameResult = pgTable.withRLS("game_result", {
@@ -86,22 +88,6 @@ export const gameResult = pgTable.withRLS("game_result", {
 	primaryKey({ columns: [table.gameId, table.startingSeat], name: "game_result_pkey"}),
 ]);
 
-export const gameRuleset = pgTable.withRLS("game_ruleset", {
-	id: bigint({ mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
-	referenceRulesetId: bigint("reference_ruleset_id", { mode: 'number' }).references(() => rulesetInfo.id),
-	initialValue: integer("initial_value").notNull(),
-	aka: akaEnum().notNull(),
-	umaP1: integer("uma_p1").notNull(),
-	umaP2: integer("uma_p2").notNull(),
-	umaP3: integer("uma_p3").notNull(),
-	umaP4: integer("uma_p4").notNull(),
-	oka: integer().default(0).notNull(),
-	chomboValue: integer("chombo_value").notNull(),
-	chomboOption: chomboOptionEnum("chombo_option").notNull(),
-	kiriageMangan: boolean("kiriage_mangan").notNull(),
-	multipleRon: boolean("multiple_ron").notNull(),
-});
-
 export const handInfo = pgTable.withRLS("hand_info", {
 	handId: bigint("hand_id", { mode: 'number' }).primaryKey(),
 	gameId: bigint("game_id", { mode: 'number' }).notNull().references(() => gameInfo.gameId),
@@ -111,17 +97,12 @@ export const handInfo = pgTable.withRLS("hand_info", {
 	honba: integer().default(0).notNull(),
 	riichiDeposits: integer("riichi_deposits").default(0).notNull(),
 	handOutcome: handOutcomeEnum("hand_outcome"),
-	han: integer().default(0),
-	fu: integer().default(0),
-	handValue: integer("hand_value").default(0),
 	completed: boolean().default(false).notNull(),
-	mainHid: bigint("main_hid", { mode: 'number' }),
-	isMultipleRon: boolean("is_multiple_ron"),
 	submittedRow: boolean("submitted_row").default(false),
 });
 
-export const handResult = pgTable.withRLS("hand_result", {
-	ihid: bigint({ mode: 'number' }).primaryKey(),
+export const handPlayerResult = pgTable.withRLS("hand_player_result", {
+	handPlayerResultId: bigint("hand_player_result_id", { mode: 'number' }).primaryKey(),
 	gameInfo: bigint("game_info", { mode: 'number' }).notNull().references(() => gameInfo.gameId),
 	handId: bigint("hand_id", { mode: 'number' }).notNull().references(() => handInfo.handId),
 	playerId: integer("player_id").notNull().references(() => playerInfo.playerId),
@@ -133,11 +114,11 @@ export const handResult = pgTable.withRLS("hand_result", {
 	chombo: boolean().default(false).notNull(),
 	scoreChange: integer("score_change").default(0).notNull(),
 	startScore: integer("start_score").notNull(),
-	endScore: integer("end_score").notNull(),
 	riichi: boolean().default(false).notNull(),
 	tenpai: boolean().default(false).notNull(),
 	dealer: boolean().notNull(),
 	submittedRow: boolean("submitted_row"),
+	endScore: integer("end_score").generatedAlwaysAs(sql`(start_score + score_change)`),
 });
 
 export const handTransaction = pgTable.withRLS("hand_transaction", {
@@ -147,6 +128,25 @@ export const handTransaction = pgTable.withRLS("hand_transaction", {
 	amount: integer(),
 }, (table) => [
 	primaryKey({ columns: [table.handId, table.payerPlayerId, table.payeePlayerId], name: "hand_transaction_pkey"}),
+]);
+
+export const handWin = pgTable.withRLS("hand_win", {
+	handWinId: bigint("hand_win_id", { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity({ name: "hand_win_ihid_seq" }),
+	handId: bigint("hand_id", { mode: 'number' }).notNull().references(() => handInfo.handId),
+	winnerPlayerId: integer("winner_player_id").notNull().references(() => playerInfo.playerId),
+	han: integer(),
+	fu: integer(),
+	handValue: integer("hand_value").notNull(),
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+	winType: winTypeEnum("win_type").notNull(),
+}, (table) => [
+	unique("hand_win_hand_id_winner_pid_key").on(table.handId, table.winnerPlayerId),]);
+
+export const handYaku = pgTable.withRLS("hand_yaku", {
+	handWinId: bigint("hand_win_id", { mode: 'number' }).notNull().references(() => handWin.handWinId),
+	yakuId: integer("yaku_id").notNull().references(() => yakuLookup.yakuId),
+}, (table) => [
+	primaryKey({ columns: [table.handWinId, table.yakuId], name: "hand_yaku_pkey"}),
 ]);
 
 export const localText = pgTable.withRLS("local_text", {
@@ -211,7 +211,6 @@ export const ruleDetails = pgTable.withRLS("rule_details", {
 });
 
 export const rulesetInfo = pgTable.withRLS("ruleset_info", {
-	id: bigint({ mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
 	name: text().notNull(),
 	description: text(),
 	initialValue: integer("initial_value").default(250).notNull(),
@@ -230,6 +229,8 @@ export const rulesetInfo = pgTable.withRLS("ruleset_info", {
 	umaCal: integer("uma_cal").default(0).notNull(),
 	effectiveStart: timestamp("effective_start", { withTimezone: true }),
 	effectiveEnd: timestamp("effective_end", { withTimezone: true }),
+	rulesetId: smallint("ruleset_id").primaryKey().generatedByDefaultAsIdentity(),
+	umaId: smallint("uma_id"),
 });
 
 export const scoreLookup = pgTable.withRLS("score_lookup", {
@@ -241,6 +242,31 @@ export const scoreLookup = pgTable.withRLS("score_lookup", {
 	honbaMultiplier: integer("honba_multiplier").default(0).notNull(),
 	value: integer().notNull(),
 	outcome: individualOutcomeEnum().notNull(),
+});
+
+export const umaLookup = pgTable.withRLS("uma_lookup", {
+	umaId: smallint("uma_id").primaryKey().generatedByDefaultAsIdentity(),
+	umaP1: integer("uma_p1").notNull(),
+	umaP2: integer("uma_p2").notNull(),
+	umaP3: integer("uma_p3").notNull(),
+	umaP4: integer("uma_p4").notNull(),
+	category: text().notNull(),
+	purpose: text().notNull(),
+	status: boolean().default(true).notNull(),
+	totalUma: integer("total_uma").generatedAlwaysAs(sql`(((uma_p1 + uma_p2) + uma_p3) + uma_p4)`),
+	firstPlaceGap: integer("first_place_gap").generatedAlwaysAs(sql`(uma_p1 - uma_p2)`),
+	middlePlaceGap: integer("middle_place_gap").generatedAlwaysAs(sql`(uma_p2 - uma_p3)`),
+	lastPlaceGap: integer("last_place_gap").generatedAlwaysAs(sql`(uma_p3 - uma_p4)`),
+	playStyle: text("play_style").generatedAlwaysAs(sql`
+CASE
+    WHEN (((uma_p1 - uma_p2) = (uma_p2 - uma_p3)) AND ((uma_p2 - uma_p3) = (uma_p3 - uma_p4))) THEN 'Equal Positional Emphasis'::text
+    WHEN (((uma_p1 - uma_p2) = (uma_p3 - uma_p4)) AND ((uma_p1 - uma_p2) > (uma_p2 - uma_p3))) THEN 'Barbell Emphasis'::text
+    WHEN (((uma_p2 - uma_p3) > (uma_p1 - uma_p2)) AND ((uma_p2 - uma_p3) > (uma_p3 - uma_p4))) THEN 'Middle Split Emphasis'::text
+    WHEN (((uma_p1 - uma_p2) > (uma_p2 - uma_p3)) AND ((uma_p1 - uma_p2) > (uma_p3 - uma_p4))) THEN 'First Place Emphasis'::text
+    WHEN (((uma_p3 - uma_p4) > (uma_p1 - uma_p2)) AND ((uma_p3 - uma_p4) > (uma_p2 - uma_p3))) THEN 'Last Place Avoidance'::text
+    ELSE 'Asymmetric/Mixed'::text
+END`),
+	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
 });
 
 export const userRoles = pgTable.withRLS("user_roles", {
@@ -268,15 +294,13 @@ export const venue = pgTable.withRLS("venue", {
 }, (table) => [
 	unique("venue_name_key").on(table.name),]);
 
-export const yakumanRecord = pgTable.withRLS("yakuman_record", {
-	yakumanId: bigint("yakuman_id", { mode: 'number' }).primaryKey(),
-	pid: integer().notNull().references(() => playerInfo.playerId),
-	gid: bigint({ mode: 'number' }).notNull().references(() => gameInfo.gameId),
-	hid: bigint({ mode: 'number' }).references(() => handInfo.handId),
-	yakumanType: yakumanEnum("yakuman_type").notNull(),
-	scoreValue: integer("score_value"),
-	eventDate: date("event_date").default(sql`CURRENT_DATE`).notNull(),
-	source: text().default("manual").notNull(),
-	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+export const yakuLookup = pgTable.withRLS("yaku_lookup", {
+	yakuId: integer("yaku_id").primaryKey().generatedByDefaultAsIdentity(),
+	yakuName: text("yaku_name").notNull(),
+	hanValue: integer("han_value").notNull(),
+	openHandPenalty: boolean("open_hand_penalty").default(false).notNull(),
+	isYakuman: boolean("is_yakuman").default(false).notNull(),
+	isDoubleYakuman: boolean("is_double_yakuman").default(false).notNull(),
+	closedOnly: boolean("closed_only").default(false).notNull(),
 }, (table) => [
-check("yakuman_record_source_check", sql`(source = ANY (ARRAY['manual'::text, 'auto'::text]))`),]);
+	unique("yaku_lookup_yaku_name_key").on(table.yakuName),]);

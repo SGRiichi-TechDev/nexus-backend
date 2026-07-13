@@ -5,7 +5,7 @@ export const relations = defineRelations(schema, (r) => ({
 	eventInfo: {
 		rulesetInfo: r.one.rulesetInfo({
 			from: r.eventInfo.rulesetId,
-			to: r.rulesetInfo.id
+			to: r.rulesetInfo.rulesetId
 		}),
 		playerInfos: r.many.playerInfo({
 			from: r.eventInfo.eventId.through(r.eventResult.eventId),
@@ -15,7 +15,6 @@ export const relations = defineRelations(schema, (r) => ({
 	rulesetInfo: {
 		eventInfos: r.many.eventInfo(),
 		gameInfos: r.many.gameInfo(),
-		gameRulesets: r.many.gameRuleset(),
 		ruleDetail: r.one.ruleDetails({
 			from: r.rulesetInfo.moreDetails,
 			to: r.ruleDetails.ruleDetailsId
@@ -24,15 +23,15 @@ export const relations = defineRelations(schema, (r) => ({
 	playerInfo: {
 		eventInfos: r.many.eventInfo(),
 		gameInfos: r.many.gameInfo(),
-		handResults: r.many.handResult(),
+		handPlayerResults: r.many.handPlayerResult(),
 		handTransactionsPayeePlayerId: r.many.handTransaction({
 			alias: "handTransaction_payeePlayerId_playerInfo_playerId"
 		}),
 		handTransactionsPayerPlayerId: r.many.handTransaction({
 			alias: "handTransaction_payerPlayerId_playerInfo_playerId"
 		}),
+		handInfos: r.many.handInfo(),
 		playerDetails: r.many.playerDetails(),
-		yakumanRecords: r.many.yakumanRecord(),
 	},
 	gameInfo: {
 		mode: r.one.mode({
@@ -41,7 +40,7 @@ export const relations = defineRelations(schema, (r) => ({
 		}),
 		rulesetInfo: r.one.rulesetInfo({
 			from: r.gameInfo.rulesetId,
-			to: r.rulesetInfo.id
+			to: r.rulesetInfo.rulesetId
 		}),
 		venue: r.one.venue({
 			from: r.gameInfo.venueId,
@@ -52,8 +51,7 @@ export const relations = defineRelations(schema, (r) => ({
 			to: r.playerInfo.playerId.through(r.gameResult.playerId)
 		}),
 		handInfos: r.many.handInfo(),
-		handResults: r.many.handResult(),
-		yakumanRecords: r.many.yakumanRecord(),
+		handPlayerResults: r.many.handPlayerResult(),
 	},
 	mode: {
 		gameInfos: r.many.gameInfo(),
@@ -66,32 +64,29 @@ export const relations = defineRelations(schema, (r) => ({
 		gameInfos: r.many.gameInfo(),
 		modes: r.many.mode(),
 	},
-	gameRuleset: {
-		rulesetInfo: r.one.rulesetInfo({
-			from: r.gameRuleset.referenceRulesetId,
-			to: r.rulesetInfo.id
-		}),
-	},
 	handInfo: {
 		gameInfo: r.one.gameInfo({
 			from: r.handInfo.gameId,
 			to: r.gameInfo.gameId
 		}),
-		handResults: r.many.handResult(),
+		handPlayerResults: r.many.handPlayerResult(),
 		handTransactions: r.many.handTransaction(),
-		yakumanRecords: r.many.yakumanRecord(),
+		playerInfos: r.many.playerInfo({
+			from: r.handInfo.handId.through(r.handWin.handId),
+			to: r.playerInfo.playerId.through(r.handWin.winnerPlayerId)
+		}),
 	},
-	handResult: {
+	handPlayerResult: {
 		gameInfoRelation: r.one.gameInfo({
-			from: r.handResult.gameInfo,
+			from: r.handPlayerResult.gameInfo,
 			to: r.gameInfo.gameId
 		}),
 		handInfo: r.one.handInfo({
-			from: r.handResult.handId,
+			from: r.handPlayerResult.handId,
 			to: r.handInfo.handId
 		}),
 		playerInfo: r.one.playerInfo({
-			from: r.handResult.playerId,
+			from: r.handPlayerResult.playerId,
 			to: r.playerInfo.playerId
 		}),
 	},
@@ -110,6 +105,15 @@ export const relations = defineRelations(schema, (r) => ({
 			to: r.playerInfo.playerId,
 			alias: "handTransaction_payerPlayerId_playerInfo_playerId"
 		}),
+	},
+	handWin: {
+		yakuLookups: r.many.yakuLookup({
+			from: r.handWin.handWinId.through(r.handYaku.handWinId),
+			to: r.yakuLookup.yakuId.through(r.handYaku.yakuId)
+		}),
+	},
+	yakuLookup: {
+		handWins: r.many.handWin(),
 	},
 	playerDetails: {
 		playerInfo: r.one.playerInfo({
@@ -152,20 +156,6 @@ export const relations = defineRelations(schema, (r) => ({
 		}),
 		userRolesUserId: r.many.userRoles({
 			alias: "userRoles_userId_users_id"
-		}),
-	},
-	yakumanRecord: {
-		gameInfo: r.one.gameInfo({
-			from: r.yakumanRecord.gid,
-			to: r.gameInfo.gameId
-		}),
-		handInfo: r.one.handInfo({
-			from: r.yakumanRecord.hid,
-			to: r.handInfo.handId
-		}),
-		playerInfo: r.one.playerInfo({
-			from: r.yakumanRecord.pid,
-			to: r.playerInfo.playerId
 		}),
 	},
 }))
