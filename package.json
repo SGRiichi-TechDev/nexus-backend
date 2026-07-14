@@ -8,7 +8,8 @@
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --env-file=.env src/server.ts",
-    "start": "node --env-file=.env dist/src/server.js"
+    "build": "tsc",
+    "start": "node --env-file=.env --conditions=production dist/src/server.js"
   },
   "repository": {
     "type": "git",
@@ -37,19 +38,19 @@
   },
   "imports": {
     "#db/*": {
-      "node": "./dist/src/db/*",
+      "production": "./dist/src/db/*",
       "default": "./src/db/*"
     },
     "#controller/*": {
-      "node": "./dist/src/controller/*",
+      "production": "./dist/src/controller/*",
       "default": "./src/controller/*"
     },
     "#routes/*": {
-      "node": "./dist/src/routes/*",
+      "production": "./dist/src/routes/*",
       "default": "./src/routes/*"
     },
     "#drizzle/*": {
-      "node": "./dist/drizzle/*",
+      "production": "./dist/drizzle/*",
       "default": "./drizzle/*"
     }
   }
