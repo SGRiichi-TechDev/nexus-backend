@@ -1,4 +1,4 @@
-import playerController from '#controller/player-controller.ts';
+import playerController from '#controller/player-controller.js';
 import express, { type Router } from 'express';
 
 const router: Router = express.Router();

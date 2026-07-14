@@ -1,5 +1,8 @@
 .env
 /node_modules
 
-## Drizzle-related migration folders and files
+# Drizzle-related migration folders and files
 /drizzle/**/
+
+# Compiled output
+/dist

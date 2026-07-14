@@ -1,13 +1,13 @@
-import playerController from '#controller/player-controller.ts';
-import { db } from '#db/index.ts';
-import { playerStatusEnum } from '#drizzle/schema.ts';
+import playerController from '#controller/player-controller.js';
+import { db } from '#db/index.js';
+import { playerStatusEnum } from '#drizzle/schema.js';
 import { type Request, type Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 export type Status = (typeof playerStatusEnum.enumValues)[number];
 
 // Mock the database module to avoid actual database calls during testing
-vi.mock('#db/index.ts', () => ({
+vi.mock('#db/index.js', () => ({
   db: {
     query: {
       playerInfo: {

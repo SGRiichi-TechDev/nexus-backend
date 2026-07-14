@@ -1,5 +1,5 @@
-import { db } from '#db/index.ts';
-import { gameResult, playerInfo } from '#drizzle/schema.ts';
+import { db } from '#db/index.js';
+import { gameResult, playerInfo } from '#drizzle/schema.js';
 import { asc, eq, getColumns, type InferSelectModel } from 'drizzle-orm';
 import { type Request, type Response } from 'express';
 

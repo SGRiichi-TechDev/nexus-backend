@@ -1,4 +1,4 @@
-import apiRouter from '#routes/api-router.ts';
+import apiRouter from '#routes/api-router.js';
 import express, {
   type Express,
   type NextFunction,

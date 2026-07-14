@@ -1,5 +1,5 @@
-import { db } from '#db/index.ts';
-import { playerInfo } from '#drizzle/schema.ts';
+import { db } from '#db/index.js';
+import { playerInfo } from '#drizzle/schema.js';
 import { type InferSelectModel } from 'drizzle-orm';
 import { type Request, type Response } from 'express';
 

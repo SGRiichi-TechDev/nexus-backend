@@ -1,5 +1,5 @@
-import gameRouter from '#routes/game-routes.ts';
-import playerRouter from '#routes/player-routes.ts';
+import gameRouter from '#routes/game-routes.js';
+import playerRouter from '#routes/player-routes.js';
 import express, { Router } from 'express';
 
 const router: Router = express.Router();

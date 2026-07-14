@@ -1,6 +1,6 @@
-import gameController from '#controller/game-controller.ts';
-import { db } from '#db/index.ts';
-import type { playerStatusEnum } from '#drizzle/schema.ts';
+import gameController from '#controller/game-controller.js';
+import { db } from '#db/index.js';
+import type { playerStatusEnum } from '#drizzle/schema.js';
 import { type Request, type Response } from 'express';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
@@ -26,7 +26,7 @@ function createMockDb(): MockDb {
   };
 }
 
-vi.mock('#db/index.ts', () => ({
+vi.mock('#db/index.js', () => ({
   db: createMockDb(),
 }));
 

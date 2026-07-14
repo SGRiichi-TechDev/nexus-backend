@@ -1,4 +1,4 @@
-import { relations } from '#drizzle/relations.ts';
+import { relations } from '#drizzle/relations.js';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
