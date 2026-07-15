@@ -5,7 +5,6 @@ import express, {
   type Request,
   type Response,
 } from 'express';
-import * as OpenApiValidator from 'express-openapi-validator';
 
 const app: Express = express();
 const domain: string = process.env.DOMAIN || 'localhost';
@@ -14,15 +13,6 @@ const port: number = Number(process.env.PORT) || 3000;
 // Middleware to parse JSON bodies
 app.use(express.json());
 
-// OpenAPI Validator Middleware
-app.use(
-  OpenApiValidator.middleware({
-    apiSpec: './api/openapi.yaml',
-    validateRequests: true,
-    validateResponses: false,
-  }),
-);
-
 // Register routers
 app.use('/api/v1', apiRouter);
 
@@ -30,9 +20,6 @@ app.use('/api/v1', apiRouter);
 app.listen(port, () => {
   console.log(`Server is running at http://${domain}:${port}`);
 });
-
-// OpenAPI specification endpoint
-app.use('/spec', express.static('./api/openapi.yaml'));
 
 // Express error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
