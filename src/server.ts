@@ -1,3 +1,4 @@
+import { isAppError } from '#errors/app-error.js';
 import apiRouter from '#routes/api-router.js';
 import express, {
   type Express,
@@ -16,15 +17,26 @@ app.use(express.json());
 // Register routers
 app.use('/api/v1', apiRouter);
 
+// Express error handler (must be registered before listen)
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (isAppError(err)) {
+    if (err.format === 'text') {
+      res.status(err.status).send(err.message);
+      return;
+    }
+    res.status(err.status).json({ error: err.message });
+    return;
+  }
+
+  const message =
+    err instanceof Error ? err.message : 'Internal Server Error';
+  res.status(500).json({
+    message,
+    errors: (err as { errors?: unknown }).errors,
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running at http://${domain}:${port}`);
-});
-
-// Express error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  res.status(err.status || 500).json({
-    message: err.message,
-    errors: err.errors, // Provides detailed pathing to the schema mismatch
-  });
 });

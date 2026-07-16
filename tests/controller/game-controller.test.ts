@@ -1,36 +1,20 @@
 import gameController from '#controller/game-controller.js';
-import { db } from '#db/index.js';
+import { NotFoundError, isAppError } from '#errors/app-error.js';
+import { gameService } from '#services/game.service.js';
 import type { playerStatusEnum } from '#drizzle/schema.js';
-import { type Request, type Response } from 'express';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { type NextFunction, type Request, type Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 export type Status = (typeof playerStatusEnum.enumValues)[number];
 
-interface MockDb {
-  select: Mock;
-  from: Mock;
-  innerJoin: Mock;
-  where: Mock;
-  orderBy: Mock;
-  limit: Mock;
-}
-
-function createMockDb(): MockDb {
-  return {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    innerJoin: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-  };
-}
-
-vi.mock('#db/index.js', () => ({
-  db: createMockDb(),
+vi.mock('#services/game.service.js', () => ({
+  gameService: {
+    getPlayers: vi.fn(),
+    getRuleset: vi.fn(),
+  },
 }));
 
-const mockedDb = db as unknown as MockDb;
+const mockedService = vi.mocked(gameService);
 
 const mockResponse = () => {
   const res = {} as Response;
@@ -38,6 +22,17 @@ const mockResponse = () => {
   res.json = vi.fn().mockReturnValue(res);
   return res;
 };
+
+const mockNext =
+  (res: Response): NextFunction =>
+  (err?: unknown) => {
+    if (!err) return;
+    if (isAppError(err)) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -80,51 +75,42 @@ describe('getPlayersByGameId', () => {
       },
     ];
 
-    mockedDb.limit.mockResolvedValueOnce([
-      {
-        gameId: 1,
-        playerId: 1,
-        startingSeat: 1,
-      },
-    ]);
-    mockedDb.orderBy.mockResolvedValueOnce(fakePlayers);
+    mockedService.getPlayers.mockResolvedValue(fakePlayers);
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
+    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res);
+    await gameController.getPlayersByGameId(req, res, next);
 
-    expect(mockedDb.select).toHaveBeenCalled();
+    expect(mockedService.getPlayers).toHaveBeenCalledWith(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(fakePlayers);
   });
 
   it('returns empty array when no players found', async () => {
-    mockedDb.limit.mockResolvedValueOnce([
-      {
-        gameId: 1,
-        playerId: 1,
-        startingSeat: 1,
-      },
-    ]);
-    mockedDb.orderBy.mockResolvedValueOnce([]);
+    mockedService.getPlayers.mockResolvedValue([]);
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
+    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res);
+    await gameController.getPlayersByGameId(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith([]);
   });
 
   it('returns 404 when game not found', async () => {
-    mockedDb.limit.mockResolvedValueOnce([]);
+    mockedService.getPlayers.mockRejectedValue(
+      new NotFoundError('Game not found', 'json'),
+    );
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
+    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res);
+    await gameController.getPlayersByGameId(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
@@ -133,16 +119,63 @@ describe('getPlayersByGameId', () => {
   });
 
   it('returns 500 on query error', async () => {
-    mockedDb.limit.mockRejectedValueOnce(new Error('Database error'));
+    mockedService.getPlayers.mockRejectedValue(new Error('Database error'));
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
+    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res);
+    await gameController.getPlayersByGameId(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
       error: 'Internal server error',
+    });
+  });
+});
+
+describe('getRulesetInfoByGameId', () => {
+  it('returns ruleset on success', async () => {
+    const fakeRuleset = {
+      initialValue: 25000,
+      aka: 'Aka-Ari' as const,
+      umaP1: 15,
+      umaP2: 5,
+      umaP3: -5,
+      umaP4: -15,
+      oka: 0,
+      chomboValue: 20,
+      chomboOption: 'Payment to all' as const,
+      kiriageMangan: false,
+      multipleRon: false,
+    };
+
+    mockedService.getRuleset.mockResolvedValue(fakeRuleset);
+
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+    const next = mockNext(res);
+
+    await gameController.getRulesetInfoByGameId(req, res, next);
+
+    expect(mockedService.getRuleset).toHaveBeenCalledWith(1);
+    expect(res.json).toHaveBeenCalledWith(fakeRuleset);
+  });
+
+  it('returns 404 when ruleset not found', async () => {
+    mockedService.getRuleset.mockRejectedValue(
+      new NotFoundError('Ruleset info not found', 'json'),
+    );
+
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+    const next = mockNext(res);
+
+    await gameController.getRulesetInfoByGameId(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      error: 'Ruleset info not found',
     });
   });
 });

@@ -1,79 +1,66 @@
-import { db } from '#db/index.js';
-import { handPlayerResult, playerInfo } from '#drizzle/schema.js';
-import { and, asc, eq, getColumns } from 'drizzle-orm';
-import { type Request, type Response } from 'express';
+import { toHttpError } from '#errors/app-error.js';
+import { handService } from '#services/hand.service.js';
+import {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
 
 const handController = {
-  async getPlayersInRiichi(req: Request, res: Response) {
-    const handId: number = Number(req.params.id);
-
+  async getPlayersInRiichi(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const result = await db
-        .select(getColumns(playerInfo))
-        .from(handPlayerResult)
-        .innerJoin(
-          playerInfo,
-          eq(handPlayerResult.playerId, playerInfo.playerId),
-        )
-        .where(
-          and(
-            eq(handPlayerResult.handId, handId),
-            eq(handPlayerResult.riichi, true),
-          ),
-        )
-        .orderBy(asc(handPlayerResult.riichiOrder));
-
+      const handId = Number(req.params.id);
+      const result = await handService.getPlayersInRiichi(handId);
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' });
+      next(
+        toHttpError(error, {
+          message: 'Internal Server Error',
+          format: 'json',
+        }),
+      );
     }
   },
 
-  async getPlayersInTenpai(req: Request, res: Response) {
-    const handId: number = Number(req.params.id);
-
+  async getPlayersInTenpai(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const result = await db
-        .select(getColumns(playerInfo))
-        .from(handPlayerResult)
-        .innerJoin(
-          playerInfo,
-          eq(handPlayerResult.playerId, playerInfo.playerId),
-        )
-        .where(
-          and(
-            eq(handPlayerResult.handId, handId),
-            eq(handPlayerResult.tenpai, true),
-          ),
-        );
-
+      const handId = Number(req.params.id);
+      const result = await handService.getPlayersInTenpai(handId);
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' });
+      next(
+        toHttpError(error, {
+          message: 'Internal Server Error',
+          format: 'json',
+        }),
+      );
     }
   },
 
-  async getPlayersThatChombo(req: Request, res: Response) {
-    const handId: number = Number(req.params.id);
-
+  async getPlayersThatChombo(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const result = await db
-        .select(getColumns(playerInfo))
-        .from(handPlayerResult)
-        .innerJoin(
-          playerInfo,
-          eq(handPlayerResult.playerId, playerInfo.playerId),
-        )
-        .where(
-          and(
-            eq(handPlayerResult.handId, handId),
-            eq(handPlayerResult.chombo, true),
-          ),
-        );
-
+      const handId = Number(req.params.id);
+      const result = await handService.getPlayersThatChombo(handId);
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' });
+      next(
+        toHttpError(error, {
+          message: 'Internal Server Error',
+          format: 'json',
+        }),
+      );
     }
   },
 };

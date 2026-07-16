@@ -51,6 +51,18 @@
     "#drizzle/*": {
       "production": "./dist/drizzle/*",
       "default": "./drizzle/*"
+    },
+    "#services/*": {
+      "production": "./dist/src/services/*",
+      "default": "./src/services/*"
+    },
+    "#repositories/*": {
+      "production": "./dist/src/repositories/*",
+      "default": "./src/repositories/*"
+    },
+    "#errors/*": {
+      "production": "./dist/src/errors/*",
+      "default": "./src/errors/*"
     }
   }
 }
