@@ -28,6 +28,11 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     return;
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    res.status(500).json({ message: 'Internal Server Error' });
+    return;
+  }
+
   const message =
     err instanceof Error ? err.message : 'Internal Server Error';
   res.status(500).json({

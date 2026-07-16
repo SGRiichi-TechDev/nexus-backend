@@ -2,11 +2,10 @@ import playerController from '#controller/player-controller.js';
 import {
   BadRequestError,
   NotFoundError,
-  isAppError,
 } from '#errors/app-error.js';
 import { playerService } from '#services/player.service.js';
 import { playerStatusEnum } from '#drizzle/schema.js';
-import { type NextFunction, type Request, type Response } from 'express';
+import { type Request, type Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 export type Status = (typeof playerStatusEnum.enumValues)[number];
@@ -29,22 +28,6 @@ const mockResponse = () => {
   return res;
 };
 
-/** Simulate Express error middleware for controller unit tests. */
-const mockNext =
-  (res: Response): NextFunction =>
-  (err?: unknown) => {
-    if (!err) return;
-    if (isAppError(err)) {
-      if (err.format === 'text') {
-        res.status(err.status).send(err.message);
-        return;
-      }
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    res.status(500).send('Internal Server Error');
-  };
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -65,40 +48,35 @@ describe('getAllPlayers', () => {
 
     const req = {} as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getAllPlayers(req, res, next);
+    await playerController.getAllPlayers(req, res);
 
     expect(mockedService.list).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(fakeRows);
   });
 
-  it('returns 404 when no players found', async () => {
+  it('propagates NotFoundError when no players found', async () => {
     mockedService.list.mockRejectedValue(
       new NotFoundError('No players found', 'text'),
     );
 
     const req = {} as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getAllPlayers(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith('No players found');
+    await expect(
+      playerController.getAllPlayers(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('returns 500 on query error', async () => {
+  it('propagates unexpected errors', async () => {
     mockedService.list.mockRejectedValue(new Error('DB error'));
 
     const req = {} as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getAllPlayers(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('Internal Server Error');
+    await expect(playerController.getAllPlayers(req, res)).rejects.toThrow(
+      'DB error',
+    );
   });
 });
 
@@ -116,90 +94,77 @@ describe('getPlayerById', () => {
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getPlayerById(req, res, next);
+    await playerController.getPlayerById(req, res);
 
     expect(mockedService.getById).toHaveBeenCalledWith(1);
     expect(res.json).toHaveBeenCalledWith(fakePlayer);
   });
 
-  it('returns 404 when player not found', async () => {
+  it('propagates NotFoundError when player not found', async () => {
     mockedService.getById.mockRejectedValue(
       new NotFoundError('Player not found', 'text'),
     );
 
     const req = { params: { id: '999' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getPlayerById(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith('Player not found');
+    await expect(
+      playerController.getPlayerById(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('returns 500 on query error', async () => {
+  it('propagates unexpected errors', async () => {
     mockedService.getById.mockRejectedValue(new Error('DB error'));
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getPlayerById(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('Internal Server Error');
+    await expect(playerController.getPlayerById(req, res)).rejects.toThrow(
+      'DB error',
+    );
   });
 });
 
 describe('getCurrentGameForPlayer', () => {
-  it('returns 400 when telegramId is missing or invalid', async () => {
+  it('propagates BadRequestError when telegramId is missing or invalid', async () => {
     mockedService.getCurrentGame.mockRejectedValue(
       new BadRequestError('Telegram ID is required', 'text'),
     );
 
     const req = { query: {} } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getCurrentGameForPlayer(req, res, next);
-
+    await expect(
+      playerController.getCurrentGameForPlayer(req, res),
+    ).rejects.toBeInstanceOf(BadRequestError);
     expect(mockedService.getCurrentGame).toHaveBeenCalledWith(Number(undefined));
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.send).toHaveBeenCalledWith('Telegram ID is required');
   });
 
-  it('returns 404 when player is not found', async () => {
+  it('propagates NotFoundError when player is not found', async () => {
     mockedService.getCurrentGame.mockRejectedValue(
       new NotFoundError('Player not found', 'text'),
     );
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getCurrentGameForPlayer(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith('Player not found');
+    await expect(
+      playerController.getCurrentGameForPlayer(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('returns 404 when player has no current game', async () => {
+  it('propagates NotFoundError when player has no current game', async () => {
     mockedService.getCurrentGame.mockRejectedValue(
       new NotFoundError('No current game found for this player', 'text'),
     );
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getCurrentGameForPlayer(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith(
-      'No current game found for this player',
-    );
+    await expect(
+      playerController.getCurrentGameForPlayer(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('returns the current game on success', async () => {
@@ -218,27 +183,24 @@ describe('getCurrentGameForPlayer', () => {
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getCurrentGameForPlayer(req, res, next);
+    await playerController.getCurrentGameForPlayer(req, res);
 
     expect(mockedService.getCurrentGame).toHaveBeenCalledWith(12345);
     expect(res.json).toHaveBeenCalledWith(fakeGame);
     expect(res.status).not.toHaveBeenCalledWith(404);
   });
 
-  it('returns 500 when the query throws', async () => {
+  it('propagates unexpected errors', async () => {
     mockedService.getCurrentGame.mockRejectedValue(
       new Error('Database error'),
     );
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await playerController.getCurrentGameForPlayer(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.send).toHaveBeenCalledWith('Internal Server Error');
+    await expect(
+      playerController.getCurrentGameForPlayer(req, res),
+    ).rejects.toThrow('Database error');
   });
 });

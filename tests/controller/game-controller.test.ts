@@ -1,8 +1,8 @@
 import gameController from '#controller/game-controller.js';
-import { NotFoundError, isAppError } from '#errors/app-error.js';
+import { NotFoundError } from '#errors/app-error.js';
 import { gameService } from '#services/game.service.js';
 import type { playerStatusEnum } from '#drizzle/schema.js';
-import { type NextFunction, type Request, type Response } from 'express';
+import { type Request, type Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 export type Status = (typeof playerStatusEnum.enumValues)[number];
@@ -22,17 +22,6 @@ const mockResponse = () => {
   res.json = vi.fn().mockReturnValue(res);
   return res;
 };
-
-const mockNext =
-  (res: Response): NextFunction =>
-  (err?: unknown) => {
-    if (!err) return;
-    if (isAppError(err)) {
-      res.status(err.status).json({ error: err.message });
-      return;
-    }
-    res.status(500).json({ error: 'Internal server error' });
-  };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -79,9 +68,8 @@ describe('getPlayersByGameId', () => {
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res, next);
+    await gameController.getPlayersByGameId(req, res);
 
     expect(mockedService.getPlayers).toHaveBeenCalledWith(1);
     expect(res.status).toHaveBeenCalledWith(200);
@@ -93,44 +81,35 @@ describe('getPlayersByGameId', () => {
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res, next);
+    await gameController.getPlayersByGameId(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith([]);
   });
 
-  it('returns 404 when game not found', async () => {
+  it('propagates NotFoundError when game not found', async () => {
     mockedService.getPlayers.mockRejectedValue(
       new NotFoundError('Game not found', 'json'),
     );
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'Game not found',
-    });
+    await expect(
+      gameController.getPlayersByGameId(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('returns 500 on query error', async () => {
+  it('propagates unexpected errors', async () => {
     mockedService.getPlayers.mockRejectedValue(new Error('Database error'));
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getPlayersByGameId(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'Internal server error',
-    });
+    await expect(
+      gameController.getPlayersByGameId(req, res),
+    ).rejects.toThrow('Database error');
   });
 });
 
@@ -154,28 +133,23 @@ describe('getRulesetInfoByGameId', () => {
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getRulesetInfoByGameId(req, res, next);
+    await gameController.getRulesetInfoByGameId(req, res);
 
     expect(mockedService.getRuleset).toHaveBeenCalledWith(1);
     expect(res.json).toHaveBeenCalledWith(fakeRuleset);
   });
 
-  it('returns 404 when ruleset not found', async () => {
+  it('propagates NotFoundError when ruleset not found', async () => {
     mockedService.getRuleset.mockRejectedValue(
       new NotFoundError('Ruleset info not found', 'json'),
     );
 
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
-    const next = mockNext(res);
 
-    await gameController.getRulesetInfoByGameId(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'Ruleset info not found',
-    });
+    await expect(
+      gameController.getRulesetInfoByGameId(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 });

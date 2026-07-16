@@ -33,14 +33,3 @@ export class NotFoundError extends AppError {
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }
-
-/** Map unknown errors to AppError while preserving per-controller response format. */
-export function toHttpError(
-  error: unknown,
-  fallback: { message: string; format: ErrorFormat },
-): AppError {
-  if (isAppError(error)) {
-    return error;
-  }
-  return new AppError(fallback.message, 500, fallback.format);
-}
