@@ -1,4 +1,6 @@
 import { isAppError } from '#errors/app-error.js';
+import { logger } from '#logger/logger.js';
+import { requestLogger } from '#middleware/request-logger.js';
 import apiRouter from '#routes/api-router.js';
 import express, {
   type Express,
@@ -11,6 +13,8 @@ const app: Express = express();
 const domain: string = process.env.DOMAIN || 'localhost';
 const port: number = Number(process.env.PORT) || 3000;
 
+app.use(requestLogger);
+
 // Middleware to parse JSON bodies
 app.use(express.json());
 
@@ -18,8 +22,12 @@ app.use(express.json());
 app.use('/api/v1', apiRouter);
 
 // Express error handler (must be registered before listen)
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (isAppError(err)) {
+    req.log.warn(
+      { err, status: err.status, name: err.name },
+      err.message,
+    );
     if (err.format === 'text') {
       res.status(err.status).send(err.message);
       return;
@@ -27,6 +35,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     res.status(err.status).json({ error: err.message });
     return;
   }
+
+  req.log.error({ err }, 'Unhandled error');
 
   if (process.env.NODE_ENV === 'production') {
     res.status(500).json({ message: 'Internal Server Error' });
@@ -43,5 +53,5 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Server is running at http://${domain}:${port}`);
+  logger.info({ domain, port }, 'Server listening');
 });

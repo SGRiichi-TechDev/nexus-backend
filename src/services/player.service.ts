@@ -1,7 +1,10 @@
 import type { CurrentGameDto, PlayerInfo } from '#db/types.js';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { createLogger } from '#logger/logger.js';
 import { gameRepository } from '#repositories/game.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
+
+const logger = createLogger('player.service');
 
 export const playerService = {
   list: async (): Promise<PlayerInfo[]> => {
@@ -9,6 +12,7 @@ export const playerService = {
     if (players.length === 0) {
       throw new NotFoundError('No players found', 'text');
     }
+    logger.debug({ count: players.length }, 'Listed players');
     return players;
   },
 
@@ -17,6 +21,7 @@ export const playerService = {
     if (player === undefined) {
       throw new NotFoundError('Player not found', 'text');
     }
+    logger.debug({ playerId: id }, 'Resolved player by id');
     return player;
   },
 
@@ -40,6 +45,14 @@ export const playerService = {
       );
     }
 
+    logger.debug(
+      {
+        playerId: player.playerId,
+        telegramId,
+        gameId: currentGame.gameId,
+      },
+      'Resolved current game',
+    );
     return currentGame;
   },
 };

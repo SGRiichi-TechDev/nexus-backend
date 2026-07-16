@@ -1,6 +1,9 @@
 import type { PlayerInfo, RulesetInfoSelect } from '#db/types.js';
 import { NotFoundError } from '#errors/app-error.js';
+import { createLogger } from '#logger/logger.js';
 import { gameRepository } from '#repositories/game.repository.js';
+
+const logger = createLogger('game.service');
 
 export const gameService = {
   getPlayers: async (gameId: number): Promise<PlayerInfo[]> => {
@@ -8,7 +11,12 @@ export const gameService = {
     if (!game) {
       throw new NotFoundError('Game not found', 'json');
     }
-    return gameRepository.findPlayersOrderedBySeat(gameId);
+    const players = await gameRepository.findPlayersOrderedBySeat(gameId);
+    logger.debug(
+      { gameId, count: players.length },
+      'Resolved players for game',
+    );
+    return players;
   },
 
   getRuleset: async (gameId: number): Promise<RulesetInfoSelect> => {
@@ -16,6 +24,7 @@ export const gameService = {
     if (!ruleset) {
       throw new NotFoundError('Ruleset info not found', 'json');
     }
+    logger.debug({ gameId }, 'Resolved ruleset for game');
     return ruleset;
   },
 };
