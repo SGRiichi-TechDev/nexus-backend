@@ -24,10 +24,12 @@ Execute or verify files using these specific project commands:
 ## Project Directory Map
 
 - `src/middleware/` - Custom global or route-specific middleware (auth, validation).
-- `src/controllers/` - HTTP request handlers (thin wrapper layers, extracts inputs).
+- `src/controller/` - HTTP request handlers (thin wrapper layers, extracts inputs).
 - `src/services/` - Pure business logic functions.
+- `src/repositories/` - Data access layer (Drizzle queries only).
 - `src/routes/` - Express Router definitions mapped to controllers.
-- `src/db/` - Database and ORM-related functions.
+- `src/db/` - Database client and shared entity types.
+- `src/errors/` - Typed application errors for HTTP mapping.
 - `tests/` - Unit and integration tests.
 - `drizzle` - Drizzle-related files, contains relations and schemas.
 
@@ -42,7 +44,7 @@ Always separate routing layout from controller logic. Use explicit HTTP methods.
 ```typescript
 // Good: src/routes/user.routes.ts
 import { Router } from 'express';
-import { UserController } from '../controllers/user.controller';
+import { UserController } from '#controller/user.controller.js';
 import { validateBody } from '../middleware/validation.middleware';
 import { createUserSchema } from '../schemas/user.schema';
 
@@ -53,10 +55,10 @@ export default router;
 
 ### 2. Controller and Service Separation
 
-Controllers must remain exceptionally thin. Never handle direct business logic or DB calls inside a controller.
+Controllers must remain exceptionally thin. Never handle direct business logic or DB calls inside a controller. Controllers call services; services call repositories for data access.
 
 ```typescript
-// Good: src/controllers/user.controller.ts
+// Good: src/controller/user.controller.ts
 export const UserController = {
   create: async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -68,7 +70,6 @@ export const UserController = {
   },
 };
 ```
-
 ### 3. Input Validation Boundary
 
 Never trust client data. Validate all incoming headers, params, and request bodies using Zod schemas at the router-middleware layer before passing them down.
