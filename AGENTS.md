@@ -30,8 +30,9 @@ Execute or verify files using these specific project commands:
 - `src/routes/` - Express Router definitions mapped to controllers.
 - `src/db/` - Database client and shared entity types.
 - `src/errors/` - Typed application errors for HTTP mapping.
+- `src/logger` - Logger for application.
 - `tests/` - Unit and integration tests.
-- `drizzle` - Drizzle-related files, contains relations and schemas.
+- `drizzle/` - Drizzle-related files, contains relations and schemas.
 
 Always place new code in its respective architectural directory.
 
