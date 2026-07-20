@@ -71,6 +71,7 @@ export const UserController = {
   },
 };
 ```
+
 ### 3. Input Validation Boundary
 
 Never trust client data. Validate all incoming headers, params, and request bodies using Zod schemas at the router-middleware layer before passing them down.
@@ -88,6 +89,7 @@ Never trust client data. Validate all incoming headers, params, and request bodi
 - Use TypeScript strict mode types for all variables, inputs, and function responses.
 - Run code formatting and lint verification tools immediately after modifying files.
 - Ensure all application configuration settings pull exclusively from `process.env`.
+- Add logging with appropriate logging levels where necessary.
 
 ### ASK FIRST Before Doing
 
