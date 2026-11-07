@@ -30,6 +30,13 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message: string, format: ErrorFormat = 'json') {
+    super(message, 401, format);
+    this.name = 'UnauthorizedError';
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }
