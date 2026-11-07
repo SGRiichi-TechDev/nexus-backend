@@ -26,7 +26,7 @@ export const gameRepository = {
     const currentGame = await db
       .select({
         gameId: gameInfo.gameId,
-        submissionStage: gameInfo.submissionStage,
+        status: gameInfo.status,
         handId: handInfo.handId,
         handOutcome: handInfo.handOutcome,
         isRecorded: gameInfo.isRecorded,

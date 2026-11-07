@@ -1,0 +1,59 @@
+# Local Supabase Postgres for development.
+# See README.md in this directory for usage.
+
+name: nexus-backend
+
+services:
+  db:
+    image: supabase/postgres:17.6.1.121
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_HOST_PORT:-54322}:5432"
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPASSWORD: postgres
+      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      JWT_EXP: 3600
+    volumes:
+      - nexus_supabase_db:/var/lib/postgresql/data
+      - nexus_supabase_db_config:/etc/postgresql-custom
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  db-migrate:
+    image: supabase/postgres:17.6.1.121
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+      MIGRATIONS_DIR: /migrations
+      SEED_FILE: /seed.sql
+      APPLY_SEED: ${APPLY_SEED:-true}
+    volumes:
+      - ../supabase/migrations:/migrations:ro
+      - ../supabase/seed.sql:/seed.sql:ro
+      - ./db/apply-migrations.sh:/apply-migrations.sh:ro
+    entrypoint: ["/bin/bash", "/apply-migrations.sh"]
+    restart: "no"
+
+volumes:
+  nexus_supabase_db:
+  nexus_supabase_db_config:

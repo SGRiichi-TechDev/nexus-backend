@@ -1,4 +1,4 @@
-import { pgEnum, pgTable, integer, smallint, bigint, text, timestamp, date, boolean, jsonb, numeric, foreignKey, primaryKey, unique, check } from "drizzle-orm/pg-core"
+import { pgEnum, pgTable, text, bigint, char, integer, smallint, timestamp, date, boolean, numeric, jsonb, index, foreignKey, primaryKey, unique, check } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const akaEnum = pgEnum("aka_enum", ["Aka-Ari", "Aka-Nashi"])
@@ -11,6 +11,11 @@ export const playerStatusEnum = pgEnum("player_status_enum", ["active", "pending
 export const windEnum = pgEnum("wind_enum", ["E", "S", "W", "N"])
 export const yakumanEnum = pgEnum("yakuman_enum", ["KazoeYakuman", "KokushiMusou", "KokushiMusou_13Men", "Daisangen", "SuuAnkou", "SuuAnkou_Tanki", "Shousuushi", "Daisuushi", "Tsuuiisou", "Ryuuiisou", "Chinroutou", "ChuurenPoutou", "Suukantsu", "Tenhou", "Chiihou", "JunsuiChuurenPoutou"])
 export const winTypeEnum = pgEnum("win_type_enum", ["Ron", "Tsumo", "Nagashi Mangan"])
+export const gameStatus = pgEnum("game_status", ["draft", "pending_edit", "pending_submit", "approved", "rejected"])
+export const umaCalculationMethod = pgEnum("uma_calculation_method", ["positional", "floating"])
+export const eventTypeEnum = pgEnum("event_type_enum", ["private", "club", "league", "tournament"])
+export const resultSourceEnum = pgEnum("result_source_enum", ["derived", "manual"])
+export const eventStatusEnum = pgEnum("event_status_enum", ["draft", "active", "closed"])
 
 
 export const admin = pgTable.withRLS("admin", {
@@ -25,47 +30,90 @@ export const akakoMsg = pgTable.withRLS("akako_msg", {
 	value: text().notNull(),
 });
 
+export const cityLookup = pgTable("city_lookup", {
+	cityCode: char("city_code", { length: 3 }).primaryKey(),
+	countryCode: char("country_code", { length: 2 }).notNull().references(() => countryLookup.countryCode),
+	name: text().notNull(),
+	status: boolean().default(true).notNull(),
+}, (table) => [
+	index("idx_city_lookup_country").using("btree", table.countryCode.asc().nullsLast()),
+	unique("city_lookup_country_code_name_key").on(table.countryCode, table.name),]);
+
+export const countryLookup = pgTable("country_lookup", {
+	countryCode: char("country_code", { length: 2 }).primaryKey(),
+	name: text().notNull(),
+	status: boolean().default(true).notNull(),
+}, (table) => [
+	unique("country_lookup_name_key").on(table.name),]);
+
+export const eventFormat = pgTable("event_format", {
+	formatId: smallint("format_id").primaryKey().generatedByDefaultAsIdentity(),
+	name: text().notNull(),
+	description: text(),
+	status: boolean().default(true).notNull(),
+}, (table) => [
+	unique("event_format_name_key").on(table.name),]);
+
 export const eventInfo = pgTable.withRLS("event_info", {
-	eventId: bigint("event_id", { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity({ name: "event_event_id_seq" }),
+	eventId: integer("event_id").primaryKey().generatedByDefaultAsIdentity({ name: "event_event_id_seq" }),
 	title: text().notNull(),
 	startDate: timestamp("start_date").notNull(),
 	endDate: timestamp("end_date"),
 	scale: eventScaleEnum().notNull(),
-	location: text(),
 	influenceFactor: influenceFactorEnum("influence_factor").notNull(),
-	rulesetId: bigint("ruleset_id", { mode: 'number' }).references(() => rulesetInfo.rulesetId),
+	rulesetId: smallint("ruleset_id").references(() => rulesetInfo.rulesetId),
 	numGames: integer("num_games"),
 	totalPlayers: integer("total_players"),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-});
+	eventType: eventTypeEnum("event_type").default("tournament").notNull(),
+	formatId: smallint("format_id").references(() => eventFormat.formatId),
+	parentEventId: integer("parent_event_id"),
+	venueId: integer("venue_id").references(() => venue.venueId),
+	status: eventStatusEnum().default("draft").notNull(),
+	isSelectable: boolean("is_selectable").default(false).notNull(),
+	calculationMethod: umaCalculationMethod("calculation_method"),
+	floatingSchemeId: integer("floating_scheme_id"),
+	countryCode: char("country_code", { length: 2 }).references(() => countryLookup.countryCode),
+	cityCode: char("city_code", { length: 3 }).references(() => cityLookup.cityCode),
+}, (table) => [
+	foreignKey({
+		columns: [table.parentEventId],
+		foreignColumns: [table.eventId],
+		name: "event_info_parent_event_id_fkey"
+	}),
+	index("idx_event_info_country_code").using("btree", table.countryCode.asc().nullsLast()),
+	index("idx_event_info_parent").using("btree", table.parentEventId.asc().nullsLast()),
+	index("idx_event_info_selectable").using("btree", table.isSelectable.asc().nullsLast()).where(sql`is_selectable`),
+	index("idx_event_info_type").using("btree", table.eventType.asc().nullsLast()),
+check("event_info_floating_scheme_requires_method", sql`((floating_scheme_id IS NULL) OR (calculation_method = 'floating'::uma_calculation_method))`),check("event_info_parent_not_self", sql`(parent_event_id IS DISTINCT FROM event_id)`),]);
 
 export const eventResult = pgTable.withRLS("event_result", {
-	eventId: bigint("event_id", { mode: 'number' }).notNull().references(() => eventInfo.eventId, { onDelete: "cascade" } ),
+	eventId: integer("event_id").notNull().references(() => eventInfo.eventId, { onDelete: "cascade" } ),
 	playerId: integer("player_id").notNull().references(() => playerInfo.playerId, { onDelete: "cascade" } ),
-	totalScore: integer("total_score").default(0).notNull(),
-	netScore: integer("net_score").default(0).notNull(),
-	positionCounts: jsonb("position_counts").default({}).notNull(),
+	totalScore: numeric("total_score", { mode: 'number', precision: 10, scale: 1 }).default(0),
+	netScore: numeric("net_score", { mode: 'number', precision: 10, scale: 1 }).default(0),
+	positionCounts: jsonb("position_counts").default({}),
 	averagePosition: numeric("average_position"),
 	gamesCount: integer("games_count").default(0).notNull(),
 	finalPosition: integer("final_position"),
 	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 	updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+	source: resultSourceEnum().default("derived").notNull(),
 }, (table) => [
 	primaryKey({ columns: [table.eventId, table.playerId], name: "event_result_pkey"}),
-]);
+	index("idx_event_result_source").using("btree", table.source.asc().nullsLast()),
+check("event_result_derived_requires_scores", sql`((source <> 'derived'::result_source_enum) OR ((total_score IS NOT NULL) AND (net_score IS NOT NULL) AND (position_counts IS NOT NULL)))`),]);
 
 export const gameInfo = pgTable.withRLS("game_info", {
 	gameId: bigint("game_id", { mode: 'number' }).primaryKey(),
 	venueId: integer("venue_id").references(() => venue.venueId),
 	modeId: integer("mode_id").references(() => mode.modeId),
 	rulesetId: smallint("ruleset_id").references(() => rulesetInfo.rulesetId),
-	recordedByPid: bigint("recorded_by_pid", { mode: 'number' }),
-	createAt: timestamp("create_at").default(sql`CURRENT_TIMESTAMP`),
+	recordedByPid: integer("recorded_by_pid"),
 	endedAt: timestamp("ended_at"),
 	deleted: boolean().default(false).notNull(),
 	completed: boolean().default(false).notNull(),
 	submitted: boolean().default(false).notNull(),
-	submissionStage: text("submission_stage").default("SET_IS_RECORDED").notNull(),
 	submitFail: boolean("submit_fail").default(false).notNull(),
 	submitFailCount: integer("submit_fail_count").default(0).notNull(),
 	uploadedAt: timestamp("uploaded_at"),
@@ -73,8 +121,16 @@ export const gameInfo = pgTable.withRLS("game_info", {
 	isRecorded: boolean("is_recorded"),
 	durationMins: bigint("duration_mins", { mode: 'number' }),
 	leftoverDeposits: integer("leftover_deposits"),
-	umaId: smallint("uma_id"),
-});
+	createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+	positionalUmaId: smallint("positional_uma_id").references(() => umaPositionalLookup.positionalUmaId),
+	calculationMethod: umaCalculationMethod("calculation_method").notNull(),
+	floatingSchemeId: integer("floating_scheme_id"),
+	status: gameStatus().default("draft").notNull(),
+	eventId: integer("event_id").references(() => eventInfo.eventId),
+}, (table) => [
+	index("game_info_status_active_idx").using("btree", table.status.asc().nullsLast()).where(sql`(deleted = false)`),
+	index("idx_game_info_event").using("btree", table.eventId.asc().nullsLast()),
+check("game_info_uma_method_fk_match", sql`(((calculation_method = 'positional'::uma_calculation_method) AND (floating_scheme_id IS NULL)) OR ((calculation_method = 'floating'::uma_calculation_method) AND (positional_uma_id IS NULL) AND (floating_scheme_id IS NOT NULL)))`),]);
 
 export const gameResult = pgTable.withRLS("game_result", {
 	gameId: bigint("game_id", { mode: 'number' }).notNull().references(() => gameInfo.gameId),
@@ -167,7 +223,6 @@ export const permissions = pgTable.withRLS("permissions", {
 });
 
 export const playerDetails = pgTable.withRLS("player_details", {
-	pid: bigint({ mode: 'number' }).primaryKey().references(() => playerInfo.playerId, { onDelete: "cascade" } ),
 	dateJoined: date("date_joined").default(sql`CURRENT_DATE`).notNull(),
 	fullNameNric: text("full_name_nric").default("").notNull(),
 	surname: text().default("").notNull(),
@@ -178,6 +233,7 @@ export const playerDetails = pgTable.withRLS("player_details", {
 	email: text().default(""),
 	referredBy: text("referred_by").default("").notNull(),
 	contactNumber: bigint("contact_number", { mode: 'number' }),
+	playerId: integer("player_id").primaryKey().references(() => playerInfo.playerId, { onDelete: "cascade" } ),
 }, (table) => [
 	unique("player_details_contact_number_key").on(table.contactNumber),	unique("player_details_email_key").on(table.email),check("player_details_proficiency_check", sql`((proficiency >= 0) AND (proficiency <= 4))`),]);
 
@@ -230,7 +286,7 @@ export const rulesetInfo = pgTable.withRLS("ruleset_info", {
 	effectiveStart: timestamp("effective_start", { withTimezone: true }),
 	effectiveEnd: timestamp("effective_end", { withTimezone: true }),
 	rulesetId: smallint("ruleset_id").primaryKey().generatedByDefaultAsIdentity(),
-	umaId: smallint("uma_id"),
+	positionalUmaId: smallint("positional_uma_id"),
 });
 
 export const scoreLookup = pgTable.withRLS("score_lookup", {
@@ -244,29 +300,42 @@ export const scoreLookup = pgTable.withRLS("score_lookup", {
 	outcome: individualOutcomeEnum().notNull(),
 });
 
-export const umaLookup = pgTable.withRLS("uma_lookup", {
-	umaId: smallint("uma_id").primaryKey().generatedByDefaultAsIdentity(),
-	umaP1: integer("uma_p1").notNull(),
-	umaP2: integer("uma_p2").notNull(),
-	umaP3: integer("uma_p3").notNull(),
-	umaP4: integer("uma_p4").notNull(),
-	category: text().notNull(),
+export const umaFloatingLookup = pgTable.withRLS("uma_floating_lookup", {
+	floatingUmaId: integer("floating_uma_id").notNull(),
+	floatCount: smallint("float_count").notNull(),
+	description: text().notNull(),
+	umaRank1: integer("uma_rank1").notNull(),
+	umaRank2: integer("uma_rank2").notNull(),
+	umaRank3: integer("uma_rank3").notNull(),
+	umaRank4: integer("uma_rank4").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.floatingUmaId, table.floatCount], name: "uma_floating_bracket_pkey"}),
+check("float_count_range", sql`(float_count = ANY (ARRAY[1, 2, 3]))`),]);
+
+export const umaPositionalLookup = pgTable.withRLS("uma_positional_lookup", {
+	umaRank1: integer("uma_rank1").notNull(),
+	umaRank2: integer("uma_rank2").notNull(),
+	umaRank3: integer("uma_rank3").notNull(),
+	umaRank4: integer("uma_rank4").notNull(),
 	purpose: text().notNull(),
+	category: text().notNull(),
 	status: boolean().default(true).notNull(),
-	totalUma: integer("total_uma").generatedAlwaysAs(sql`(((uma_p1 + uma_p2) + uma_p3) + uma_p4)`),
-	firstPlaceGap: integer("first_place_gap").generatedAlwaysAs(sql`(uma_p1 - uma_p2)`),
-	middlePlaceGap: integer("middle_place_gap").generatedAlwaysAs(sql`(uma_p2 - uma_p3)`),
-	lastPlaceGap: integer("last_place_gap").generatedAlwaysAs(sql`(uma_p3 - uma_p4)`),
+	totalUma: integer("total_uma").generatedAlwaysAs(sql`(((uma_rank1 + uma_rank2) + uma_rank3) + uma_rank4)`),
+	gap12: integer("gap_1_2").generatedAlwaysAs(sql`(uma_rank1 - uma_rank2)`),
+	gap23: integer("gap_2_3").generatedAlwaysAs(sql`(uma_rank2 - uma_rank3)`),
+	gap34: integer("gap_3_4").generatedAlwaysAs(sql`(uma_rank3 - uma_rank4)`),
 	playStyle: text("play_style").generatedAlwaysAs(sql`
 CASE
-    WHEN (((uma_p1 - uma_p2) = (uma_p2 - uma_p3)) AND ((uma_p2 - uma_p3) = (uma_p3 - uma_p4))) THEN 'Equal Positional Emphasis'::text
-    WHEN (((uma_p1 - uma_p2) = (uma_p3 - uma_p4)) AND ((uma_p1 - uma_p2) > (uma_p2 - uma_p3))) THEN 'Barbell Emphasis'::text
-    WHEN (((uma_p2 - uma_p3) > (uma_p1 - uma_p2)) AND ((uma_p2 - uma_p3) > (uma_p3 - uma_p4))) THEN 'Middle Split Emphasis'::text
-    WHEN (((uma_p1 - uma_p2) > (uma_p2 - uma_p3)) AND ((uma_p1 - uma_p2) > (uma_p3 - uma_p4))) THEN 'First Place Emphasis'::text
-    WHEN (((uma_p3 - uma_p4) > (uma_p1 - uma_p2)) AND ((uma_p3 - uma_p4) > (uma_p2 - uma_p3))) THEN 'Last Place Avoidance'::text
+    WHEN (((uma_rank1 - uma_rank2) = (uma_rank2 - uma_rank3)) AND ((uma_rank2 - uma_rank3) = (uma_rank3 - uma_rank4))) THEN 'Equal Positional Emphasis'::text
+    WHEN (((uma_rank1 - uma_rank2) = (uma_rank3 - uma_rank4)) AND ((uma_rank1 - uma_rank2) > (uma_rank2 - uma_rank3))) THEN 'Barbell Emphasis'::text
+    WHEN (((uma_rank2 - uma_rank3) > (uma_rank1 - uma_rank2)) AND ((uma_rank2 - uma_rank3) > (uma_rank3 - uma_rank4))) THEN 'Middle Split Emphasis'::text
+    WHEN (((uma_rank1 - uma_rank2) > (uma_rank2 - uma_rank3)) AND ((uma_rank1 - uma_rank2) > (uma_rank3 - uma_rank4))) THEN 'First Place Emphasis'::text
+    WHEN (((uma_rank3 - uma_rank4) > (uma_rank1 - uma_rank2)) AND ((uma_rank3 - uma_rank4) > (uma_rank2 - uma_rank3))) THEN 'Last Place Avoidance'::text
     ELSE 'Asymmetric/Mixed'::text
 END`),
 	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
+	positionalUmaId: smallint("positional_uma_id").primaryKey().generatedByDefaultAsIdentity(),
 });
 
 export const userRoles = pgTable.withRLS("user_roles", {
@@ -288,9 +357,9 @@ export const users = pgTable.withRLS("users", {
 });
 
 export const venue = pgTable.withRLS("venue", {
-	venueId: integer("Venue_id").primaryKey(),
 	name: text().notNull(),
 	status: boolean().default(false).notNull(),
+	venueId: integer("venue_id").primaryKey(),
 }, (table) => [
 	unique("venue_name_key").on(table.name),]);
 

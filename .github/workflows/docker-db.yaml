@@ -1,0 +1,52 @@
+name: Docker DB Smoke
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docker/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - '.github/workflows/docker-db.yaml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docker/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - '.github/workflows/docker-db.yaml'
+  workflow_dispatch:
+
+jobs:
+  db-smoke:
+    name: Start, seed, and tear down Compose DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Start Postgres
+        run: docker compose -f docker/docker-compose.yml up -d db --wait
+
+      - name: Apply migrations and seed
+        run: docker compose -f docker/docker-compose.yml run --rm db-migrate
+
+      - name: Verify database is seeded
+        run: |
+          docker compose -f docker/docker-compose.yml exec -T db \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          SELECT COUNT(*) AS migration_count
+          FROM supabase_migrations.schema_migrations;
+          SELECT COUNT(*) AS player_count FROM player_info;
+          SELECT COUNT(*) AS uma_count FROM uma_positional_lookup;
+          SQL
+
+      - name: Tear down Compose stack
+        if: always()
+        run: docker compose -f docker/docker-compose.yml down -v
