@@ -81,7 +81,8 @@ VALUES
   (9001, 'IT Alice', 900001, 'active', 'SG', 'SGP'),
   (9002, 'IT Bob', 900002, 'active', 'SG', 'SGP'),
   (9003, 'IT Carol', 900003, 'active', 'SG', 'SGP'),
-  (9004, 'IT Dave', 900004, 'active', 'SG', 'SGP');
+  (9004, 'IT Dave', 900004, 'active', 'SG', 'SGP'),
+  (9005, 'IT Eve', 900005, 'active', 'SG', 'SGP');
 
 INSERT INTO public.game_info (
   game_id,
@@ -101,24 +102,43 @@ INSERT INTO public.game_info (
   floating_scheme_id,
   status
 )
-VALUES (
-  9001,
-  9001,
-  9001,
-  9001,
-  9001,
-  false,
-  false,
-  false,
-  false,
-  0,
-  false,
-  true,
-  9001,
-  'positional',
-  NULL,
-  'draft'
-);
+VALUES
+  (
+    9001,
+    9001,
+    9001,
+    9001,
+    9001,
+    false,
+    false,
+    false,
+    false,
+    0,
+    false,
+    true,
+    9001,
+    'positional',
+    NULL,
+    'draft'
+  ),
+  (
+    9002,
+    NULL,
+    NULL,
+    NULL,
+    9005,
+    false,
+    false,
+    false,
+    false,
+    0,
+    false,
+    NULL,
+    NULL,
+    'positional',
+    NULL,
+    'draft'
+  );
 
 INSERT INTO public.game_result (
   game_id,

@@ -1,10 +1,7 @@
 import playerController from '#controller/player-controller.js';
-import {
-  BadRequestError,
-  NotFoundError,
-} from '#errors/app-error.js';
-import { playerService } from '#services/player.service.js';
 import { playerStatusEnum } from '#drizzle/schema.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { playerService } from '#services/player.service.js';
 import { type Request, type Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,6 +25,7 @@ const mockResponse = () => {
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.send = vi.fn().mockReturnValue(res);
+  res.sendStatus = vi.fn().mockReturnValue(res);
   return res;
 };
 
@@ -58,17 +56,15 @@ describe('getAllPlayers', () => {
     expect(res.json).toHaveBeenCalledWith(fakeRows);
   });
 
-  it('propagates NotFoundError when no players found', async () => {
-    mockedService.list.mockRejectedValue(
-      new NotFoundError('No players found', 'text'),
-    );
+  it('returns empty array when no players', async () => {
+    mockedService.list.mockResolvedValue([]);
 
     const req = {} as Request;
     const res = mockResponse();
 
-    await expect(
-      playerController.getAllPlayers(req, res),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    await playerController.getAllPlayers(req, res);
+
+    expect(res.json).toHaveBeenCalledWith([]);
   });
 
   it('propagates unexpected errors', async () => {
@@ -141,7 +137,9 @@ describe('getCurrentGameForPlayer', () => {
     await expect(
       playerController.getCurrentGameForPlayer(req, res),
     ).rejects.toBeInstanceOf(BadRequestError);
-    expect(mockedService.getCurrentGame).toHaveBeenCalledWith(Number(undefined));
+    expect(mockedService.getCurrentGame).toHaveBeenCalledWith(
+      Number(undefined),
+    );
   });
 
   it('propagates NotFoundError when player is not found', async () => {
@@ -157,17 +155,17 @@ describe('getCurrentGameForPlayer', () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('propagates NotFoundError when player has no current game', async () => {
-    mockedService.getCurrentGame.mockRejectedValue(
-      new NotFoundError('No current game found for this player', 'text'),
-    );
+  it('returns 204 when player has no current game', async () => {
+    mockedService.getCurrentGame.mockResolvedValue(null);
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
 
-    await expect(
-      playerController.getCurrentGameForPlayer(req, res),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    await playerController.getCurrentGameForPlayer(req, res);
+
+    expect(mockedService.getCurrentGame).toHaveBeenCalledWith(12345);
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   it('returns the current game on success', async () => {
@@ -193,13 +191,11 @@ describe('getCurrentGameForPlayer', () => {
 
     expect(mockedService.getCurrentGame).toHaveBeenCalledWith(12345);
     expect(res.json).toHaveBeenCalledWith(fakeGame);
-    expect(res.status).not.toHaveBeenCalledWith(404);
+    expect(res.sendStatus).not.toHaveBeenCalledWith(204);
   });
 
   it('propagates unexpected errors', async () => {
-    mockedService.getCurrentGame.mockRejectedValue(
-      new Error('Database error'),
-    );
+    mockedService.getCurrentGame.mockRejectedValue(new Error('Database error'));
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();

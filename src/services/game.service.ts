@@ -69,10 +69,7 @@ export const gameService = {
   },
 
   getPlayers: async (gameId: number): Promise<PlayerInfo[]> => {
-    const game = await gameRepository.findFirstResultByGameId(gameId);
-    if (!game) {
-      throw new NotFoundError('Game not found', 'json');
-    }
+    await assertGameExists(gameId);
     const players = await gameRepository.findPlayersOrderedBySeat(gameId);
     logger.debug(
       { gameId, count: players.length },
@@ -81,20 +78,23 @@ export const gameService = {
     return players;
   },
 
-  getRuleset: async (gameId: number): Promise<RulesetInfoSelect> => {
+  getRuleset: async (gameId: number): Promise<RulesetInfoSelect | null> => {
+    await assertGameExists(gameId);
     const ruleset = await gameRepository.findRulesetByGameId(gameId);
     if (!ruleset) {
-      throw new NotFoundError('Ruleset info not found', 'json');
+      logger.debug({ gameId }, 'No ruleset for game');
+      return null;
     }
     logger.debug({ gameId }, 'Resolved ruleset for game');
     return ruleset;
   },
 
-  getFinalScore: async (gameId: number): Promise<FinalScoreDto> => {
+  getFinalScore: async (gameId: number): Promise<FinalScoreDto | null> => {
     await assertGameExists(gameId);
     const finalScore = await gameRepository.findFinalScoreByGameId(gameId);
     if (!finalScore) {
-      throw new NotFoundError('Final score not found', 'json');
+      logger.debug({ gameId }, 'No final score for game');
+      return null;
     }
     logger.debug({ gameId }, 'Resolved final score');
     return finalScore;
@@ -114,11 +114,12 @@ export const gameService = {
     return { count };
   },
 
-  getLastCompletedHand: async (gameId: number): Promise<HandIdDto> => {
+  getLastCompletedHand: async (gameId: number): Promise<HandIdDto | null> => {
     await assertGameExists(gameId);
     const hand = await gameRepository.findLastCompletedHandId(gameId);
     if (!hand) {
-      throw new NotFoundError('No completed hand found', 'json');
+      logger.debug({ gameId }, 'No completed hand for game');
+      return null;
     }
     logger.debug({ gameId, handId: hand.handId }, 'Resolved last completed hand');
     return hand;
@@ -140,11 +141,12 @@ export const gameService = {
     return ids;
   },
 
-  getVenueMode: async (gameId: number): Promise<VenueModeDto> => {
+  getVenueMode: async (gameId: number): Promise<VenueModeDto | null> => {
     await assertGameExists(gameId);
     const venueMode = await gameRepository.findVenueAndModeByGameId(gameId);
     if (!venueMode) {
-      throw new NotFoundError('Venue and mode not found', 'json');
+      logger.debug({ gameId }, 'No venue/mode for game');
+      return null;
     }
     logger.debug({ gameId }, 'Resolved venue and mode');
     return venueMode;
@@ -154,7 +156,8 @@ export const gameService = {
     await assertGameExists(gameId);
     const venueId = await gameRepository.findVenueIdByGameId(gameId);
     if (venueId === undefined) {
-      throw new NotFoundError('Venue not found for game', 'json');
+      logger.debug({ gameId }, 'No venue for game; returning empty modes');
+      return [];
     }
     const modes = await modeRepository.findActiveByVenueId(venueId);
     logger.debug({ gameId, count: modes.length }, 'Resolved modes');

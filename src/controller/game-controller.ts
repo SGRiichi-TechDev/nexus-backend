@@ -38,12 +38,20 @@ const gameController = {
   async getRulesetInfoByGameId(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const ruleset = await gameService.getRuleset(gameId);
+    if (ruleset === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(ruleset);
   },
 
   async getFinalScore(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const finalScore = await gameService.getFinalScore(gameId);
+    if (finalScore === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(finalScore);
   },
 
@@ -62,12 +70,20 @@ const gameController = {
   async getLastCompletedHand(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const hand = await gameService.getLastCompletedHand(gameId);
+    if (hand === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(hand);
   },
 
   async getLastHandForNext(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const hand = await gameService.getLastHandForNext(gameId);
+    if (hand === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(hand);
   },
 
@@ -80,6 +96,10 @@ const gameController = {
   async getVenueMode(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const venueMode = await gameService.getVenueMode(gameId);
+    if (venueMode === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(venueMode);
   },
 

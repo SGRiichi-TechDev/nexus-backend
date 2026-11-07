@@ -38,15 +38,10 @@ describe('playerService.list', () => {
     await expect(playerService.list()).resolves.toEqual(players);
   });
 
-  it('throws NotFoundError when empty', async () => {
+  it('returns empty array when no players', async () => {
     mockedPlayerRepo.findAll.mockResolvedValue([]);
 
-    await expect(playerService.list()).rejects.toBeInstanceOf(NotFoundError);
-    await expect(playerService.list()).rejects.toMatchObject({
-      message: 'No players found',
-      status: 404,
-      format: 'text',
-    });
+    await expect(playerService.list()).resolves.toEqual([]);
   });
 });
 
@@ -85,15 +80,13 @@ describe('playerService.getCurrentGame', () => {
     });
   });
 
-  it('throws NotFoundError when no current game', async () => {
+  it('returns null when no current game', async () => {
     mockedPlayerRepo.findByTelegramId.mockResolvedValue({
       playerId: 1,
     } as never);
     mockedGameRepo.findCurrentIncompleteByRecorder.mockResolvedValue(undefined);
 
-    await expect(playerService.getCurrentGame(12345)).rejects.toMatchObject({
-      message: 'No current game found for this player',
-    });
+    await expect(playerService.getCurrentGame(12345)).resolves.toBeNull();
   });
 
   it('returns current game on success', async () => {

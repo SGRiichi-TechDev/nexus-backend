@@ -1,4 +1,5 @@
 import { isAppError } from '#errors/app-error.js';
+import { requireApiKey } from '#middleware/api-key.middleware.js';
 import { requestLogger } from '#middleware/request-logger.js';
 import apiRouter from '#routes/api-router.js';
 import express, {
@@ -13,7 +14,7 @@ export function createApp(): Express {
 
   app.use(requestLogger);
   app.use(express.json());
-  app.use('/api/v1', apiRouter);
+  app.use('/api/v1', requireApiKey, apiRouter);
 
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (isAppError(err)) {

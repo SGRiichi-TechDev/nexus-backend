@@ -25,6 +25,8 @@ supabase stop
 
 Dev and IT stacks must stay separate. Never point integration tests at the shared `.env` `DATABASE_URL` or the persistent `54322` volume.
 
+App requests under `/api/v1` require `NEXUS_API_KEY` in the process environment and an `x-api-key` header with the same value (set locally in `.env`; Vitest configs inject `test-nexus-api-key`).
+
 ## Quick start
 
 From the repository root:

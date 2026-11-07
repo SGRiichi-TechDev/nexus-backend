@@ -32,6 +32,10 @@ const playerController = {
   getCurrentGameForPlayer: async (req: Request, res: Response) => {
     const telegramId = Number(req.query.telegramId);
     const currentGame = await playerService.getCurrentGame(telegramId);
+    if (currentGame === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(currentGame);
   },
 

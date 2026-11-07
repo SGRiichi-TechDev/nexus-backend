@@ -13,6 +13,10 @@ vi.mock('#services/game.service.js', () => ({
     updateGame: vi.fn(),
     getPlayers: vi.fn(),
     getRuleset: vi.fn(),
+    getFinalScore: vi.fn(),
+    getLastCompletedHand: vi.fn(),
+    getLastHandForNext: vi.fn(),
+    getVenueMode: vi.fn(),
   },
 }));
 
@@ -22,6 +26,7 @@ const mockResponse = () => {
   const res = {} as Response;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
+  res.sendStatus = vi.fn().mockReturnValue(res);
   return res;
 };
 
@@ -178,9 +183,21 @@ describe('getRulesetInfoByGameId', () => {
     expect(res.json).toHaveBeenCalledWith(fakeRuleset);
   });
 
-  it('propagates NotFoundError when ruleset not found', async () => {
+  it('returns 204 when ruleset is missing', async () => {
+    mockedService.getRuleset.mockResolvedValue(null);
+
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.getRulesetInfoByGameId(req, res);
+
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
+    expect(res.json).not.toHaveBeenCalled();
+  });
+
+  it('propagates NotFoundError when game not found', async () => {
     mockedService.getRuleset.mockRejectedValue(
-      new NotFoundError('Ruleset info not found', 'json'),
+      new NotFoundError('Game not found', 'json'),
     );
 
     const req = { params: { id: '1' } } as unknown as Request;
@@ -189,5 +206,47 @@ describe('getRulesetInfoByGameId', () => {
     await expect(
       gameController.getRulesetInfoByGameId(req, res),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('optional singular game resources', () => {
+  it('returns 204 for missing final score', async () => {
+    mockedService.getFinalScore.mockResolvedValue(null);
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.getFinalScore(req, res);
+
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
+  });
+
+  it('returns 204 for missing last completed hand', async () => {
+    mockedService.getLastCompletedHand.mockResolvedValue(null);
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.getLastCompletedHand(req, res);
+
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
+  });
+
+  it('returns 204 for missing last hand for next', async () => {
+    mockedService.getLastHandForNext.mockResolvedValue(null);
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.getLastHandForNext(req, res);
+
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
+  });
+
+  it('returns 204 for missing venue mode', async () => {
+    mockedService.getVenueMode.mockResolvedValue(null);
+    const req = { params: { id: '1' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.getVenueMode(req, res);
+
+    expect(res.sendStatus).toHaveBeenCalledWith(204);
   });
 });

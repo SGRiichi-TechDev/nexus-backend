@@ -13,9 +13,6 @@ const logger = createLogger('player.service');
 export const playerService = {
   list: async (): Promise<PlayerInfo[]> => {
     const players = await playerRepository.findAll();
-    if (players.length === 0) {
-      throw new NotFoundError('No players found', 'text');
-    }
     logger.debug({ count: players.length }, 'Listed players');
     return players;
   },
@@ -58,7 +55,9 @@ export const playerService = {
     return player;
   },
 
-  getCurrentGame: async (telegramId: number): Promise<SessionGameDto> => {
+  getCurrentGame: async (
+    telegramId: number,
+  ): Promise<SessionGameDto | null> => {
     if (!telegramId) {
       throw new BadRequestError('Telegram ID is required', 'text');
     }
@@ -72,10 +71,11 @@ export const playerService = {
       player.playerId,
     );
     if (currentGame === undefined) {
-      throw new NotFoundError(
-        'No current game found for this player',
-        'text',
+      logger.debug(
+        { playerId: player.playerId, telegramId },
+        'No current game for player',
       );
+      return null;
     }
 
     const players = await gameRepository.findPlayersOrderedBySeat(

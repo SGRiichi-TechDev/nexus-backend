@@ -128,7 +128,7 @@ describe('gameService.updateGame', () => {
 
 describe('gameService.getPlayers', () => {
   it('throws NotFoundError when game does not exist', async () => {
-    mockedRepo.findFirstResultByGameId.mockResolvedValue(undefined);
+    mockedRepo.existsById.mockResolvedValue(false);
 
     await expect(gameService.getPlayers(1)).rejects.toBeInstanceOf(
       NotFoundError,
@@ -136,11 +136,14 @@ describe('gameService.getPlayers', () => {
     expect(mockedRepo.findPlayersOrderedBySeat).not.toHaveBeenCalled();
   });
 
+  it('returns empty array when game has no seats', async () => {
+    mockedRepo.findPlayersOrderedBySeat.mockResolvedValue([]);
+
+    await expect(gameService.getPlayers(1)).resolves.toEqual([]);
+  });
+
   it('returns players ordered by seat when game exists', async () => {
     const players = [{ playerId: 1 } as never];
-    mockedRepo.findFirstResultByGameId.mockResolvedValue({
-      gameId: 1,
-    } as never);
     mockedRepo.findPlayersOrderedBySeat.mockResolvedValue(players);
 
     await expect(gameService.getPlayers(1)).resolves.toEqual(players);
@@ -149,14 +152,18 @@ describe('gameService.getPlayers', () => {
 });
 
 describe('gameService.getRuleset', () => {
-  it('throws NotFoundError when ruleset missing', async () => {
-    mockedRepo.findRulesetByGameId.mockResolvedValue(undefined);
+  it('throws when game missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
 
     await expect(gameService.getRuleset(1)).rejects.toMatchObject({
-      message: 'Ruleset info not found',
-      status: 404,
-      format: 'json',
+      message: 'Game not found',
     });
+  });
+
+  it('returns null when ruleset missing', async () => {
+    mockedRepo.findRulesetByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.getRuleset(1)).resolves.toBeNull();
   });
 
   it('returns ruleset when found', async () => {
@@ -176,6 +183,12 @@ describe('gameService.getFinalScore', () => {
     });
   });
 
+  it('returns null when final score missing', async () => {
+    mockedRepo.findFinalScoreByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.getFinalScore(1)).resolves.toBeNull();
+  });
+
   it('returns final score when found', async () => {
     const finalScore = {
       gameId: 1,
@@ -192,6 +205,37 @@ describe('gameService.getFinalScore', () => {
   });
 });
 
+describe('gameService.getLastCompletedHand', () => {
+  it('returns null when no completed hand', async () => {
+    mockedRepo.findLastCompletedHandId.mockResolvedValue(undefined);
+
+    await expect(gameService.getLastCompletedHand(1)).resolves.toBeNull();
+  });
+
+  it('returns hand when found', async () => {
+    mockedRepo.findLastCompletedHandId.mockResolvedValue({ handId: 9 });
+
+    await expect(gameService.getLastCompletedHand(1)).resolves.toEqual({
+      handId: 9,
+    });
+  });
+});
+
+describe('gameService.getVenueMode', () => {
+  it('returns null when venue/mode unset', async () => {
+    mockedRepo.findVenueAndModeByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.getVenueMode(1)).resolves.toBeNull();
+  });
+
+  it('returns venue and mode when found', async () => {
+    const venueMode = { venue: 'Club', mode: 'Hong Kong' };
+    mockedRepo.findVenueAndModeByGameId.mockResolvedValue(venueMode);
+
+    await expect(gameService.getVenueMode(1)).resolves.toEqual(venueMode);
+  });
+});
+
 describe('gameService.getAvailableRulesets', () => {
   it('returns active ruleset names', async () => {
     mockedRulesetRepo.findAvailableNames.mockResolvedValue(['Club', 'Tournament']);
@@ -204,6 +248,13 @@ describe('gameService.getAvailableRulesets', () => {
 });
 
 describe('gameService.getModes', () => {
+  it('returns empty array when game has no venue', async () => {
+    mockedRepo.findVenueIdByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.getModes(1)).resolves.toEqual([]);
+    expect(mockedModeRepo.findActiveByVenueId).not.toHaveBeenCalled();
+  });
+
   it('returns modes for game venue', async () => {
     mockedRepo.findVenueIdByGameId.mockResolvedValue(2);
     mockedModeRepo.findActiveByVenueId.mockResolvedValue([{ name: 'Club' }]);
