@@ -6,6 +6,8 @@ const router: Router = express.Router();
 router.post('/', gameController.createGame);
 router.patch('/:id', gameController.updateGame);
 
+router.post('/:id/players', gameController.addGamePlayer);
+router.post('/:id/hands', gameController.createFirstHand);
 router.get('/:id/players', gameController.getPlayersByGameId);
 router.get('/:id/ruleset', gameController.getRulesetInfoByGameId);
 router.get('/:id/final-score', gameController.getFinalScore);

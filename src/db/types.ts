@@ -206,3 +206,24 @@ export type UpdateGamePatch = {
 export type UpdateGameResponseDto = {
   gameId: number;
 };
+
+export type CreatePlayerDto = {
+  displayName: string;
+};
+
+export type SeatPlayerDto = {
+  startingSeat: number;
+  playerId: number;
+};
+
+export type SeatPlayerResponseDto = {
+  gameId: number;
+  startingSeat: number;
+  playerId: number;
+};
+
+export type CreateNextHandDto = {
+  wind: Wind;
+  roundNum: number;
+  honba: number;
+};

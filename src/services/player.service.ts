@@ -11,6 +11,16 @@ import { playerRepository } from '#repositories/player.repository.js';
 const logger = createLogger('player.service');
 
 export const playerService = {
+  create: async (displayName: string): Promise<PlayerInfo> => {
+    const trimmed = displayName?.trim() ?? '';
+    if (!trimmed) {
+      throw new BadRequestError('Display name is required', 'json');
+    }
+    const player = await playerRepository.insert({ displayName: trimmed });
+    logger.debug({ playerId: player.playerId }, 'Created player');
+    return player;
+  },
+
   list: async (): Promise<PlayerInfo[]> => {
     const players = await playerRepository.findAll();
     logger.debug({ count: players.length }, 'Listed players');

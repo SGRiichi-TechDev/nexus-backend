@@ -9,6 +9,24 @@ const gameController = {
     res.status(201).json(result);
   },
 
+  async createFirstHand(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.createFirstHand(gameId);
+    res.status(201).json(result);
+  },
+
+  async addGamePlayer(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const startingSeat = Number(req.body?.startingSeat);
+    const playerId = Number(req.body?.playerId);
+    const result = await gameService.addGamePlayer(
+      gameId,
+      startingSeat,
+      playerId,
+    );
+    res.status(201).json(result);
+  },
+
   async updateGame(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const body = req.body ?? {};

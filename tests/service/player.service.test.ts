@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#repositories/player.repository.js', () => ({
   playerRepository: {
+    insert: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
     findByIdRegistered: vi.fn(),
@@ -28,6 +29,30 @@ const mockedGameRepo = vi.mocked(gameRepository);
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('playerService.create', () => {
+  it('throws BadRequestError when display name is empty after trim', async () => {
+    await expect(playerService.create('   ')).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    expect(mockedPlayerRepo.insert).not.toHaveBeenCalled();
+  });
+
+  it('inserts player and returns created row', async () => {
+    const created = {
+      playerId: 99,
+      displayName: 'Casual',
+    } as never;
+    mockedPlayerRepo.insert.mockResolvedValue(created);
+
+    await expect(playerService.create('  Casual  ')).resolves.toEqual(
+      created,
+    );
+    expect(mockedPlayerRepo.insert).toHaveBeenCalledWith({
+      displayName: 'Casual',
+    });
+  });
 });
 
 describe('playerService.list', () => {

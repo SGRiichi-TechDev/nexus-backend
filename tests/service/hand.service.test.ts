@@ -1,4 +1,4 @@
-import { NotFoundError } from '#errors/app-error.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { handRepository } from '#repositories/hand.repository.js';
 import { handService } from '#services/hand.service.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('#repositories/hand.repository.js', () => ({
   handRepository: {
     existsById: vi.fn(),
+    insertNextHand: vi.fn(),
     findPlayersByFlag: vi.fn(),
     findHandDetails: vi.fn(),
     hasPlayerOutcome: vi.fn(),
@@ -18,6 +19,38 @@ const mockedRepo = vi.mocked(handRepository);
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('handService.createNextHand', () => {
+  it('throws NotFoundError when previous hand is missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(
+      handService.createNextHand(1, { wind: 'E', roundNum: 1, honba: 0 }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    expect(mockedRepo.insertNextHand).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestError for invalid wind', async () => {
+    await expect(
+      handService.createNextHand(1, {
+        wind: 'X' as 'E',
+        roundNum: 1,
+        honba: 0,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestError);
+    expect(mockedRepo.existsById).not.toHaveBeenCalled();
+  });
+
+  it('returns handId on success', async () => {
+    mockedRepo.existsById.mockResolvedValue(true);
+    mockedRepo.insertNextHand.mockResolvedValue({ handId: 99 });
+
+    await expect(
+      handService.createNextHand(5, { wind: 'S', roundNum: 4, honba: 2 }),
+    ).resolves.toEqual({ handId: 99 });
+    expect(mockedRepo.insertNextHand).toHaveBeenCalledWith(5, 'S', 4, 2);
+  });
 });
 
 describe('handService', () => {

@@ -1,9 +1,11 @@
 import { db } from '#db/index.js';
 import type {
   HandDetailsDto,
+  HandIdDto,
   MultipleRonStatusDto,
   PlayerInfo,
   ScoreCalcInputDto,
+  Wind,
 } from '#db/types.js';
 import {
   gameInfo,
@@ -15,9 +17,27 @@ import {
   rulesetInfo,
 } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
-import { and, asc, count, eq, getColumns, isNotNull } from 'drizzle-orm';
+import { and, asc, count, eq, getColumns, isNotNull, max } from 'drizzle-orm';
 
 const logger = createLogger('hand.repository');
+
+type DbOrTx = Pick<typeof db, 'select' | 'insert'>;
+
+const allocateNextHandId = async (tx: DbOrTx): Promise<number> => {
+  const result = await tx
+    .select({ maxHandId: max(handInfo.handId) })
+    .from(handInfo);
+  return (result[0]?.maxHandId ?? 0) + 1;
+};
+
+const allocateNextHandPlayerResultIdBase = async (
+  tx: DbOrTx,
+): Promise<number> => {
+  const result = await tx
+    .select({ maxId: max(handPlayerResult.handPlayerResultId) })
+    .from(handPlayerResult);
+  return result[0]?.maxId ?? 0;
+};
 
 export type HandPlayerFlag = 'riichi' | 'tenpai' | 'chombo';
 
@@ -334,5 +354,147 @@ export const handRepository = {
       playerId: row.playerId as number,
       outcome: row.outcome,
     }));
+  },
+
+  insertFirstHand: async (gameId: number): Promise<HandIdDto> => {
+    const start = performance.now();
+    const result = await db.transaction(async (tx) => {
+      const handId = await allocateNextHandId(tx);
+      const baseId = await allocateNextHandPlayerResultIdBase(tx);
+      const roundNum = 1;
+
+      const rulesetRow = await tx
+        .select({ initialValue: rulesetInfo.initialValue })
+        .from(gameInfo)
+        .leftJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
+        .where(eq(gameInfo.gameId, gameId))
+        .limit(1);
+      const startScore = rulesetRow[0]?.initialValue ?? 250;
+
+      const seats = await tx
+        .select({
+          startingSeat: gameResult.startingSeat,
+          playerId: gameResult.playerId,
+        })
+        .from(gameResult)
+        .where(eq(gameResult.gameId, gameId))
+        .orderBy(asc(gameResult.startingSeat));
+
+      await tx.insert(handInfo).values({
+        handId,
+        gameId,
+        handNum: 1,
+        wind: 'E',
+        roundNum,
+      });
+
+      if (seats.length > 0) {
+        await tx.insert(handPlayerResult).values(
+          seats.map((seat, index) => ({
+            handPlayerResultId: baseId + index + 1,
+            gameInfo: gameId,
+            handId,
+            playerId: seat.playerId as number,
+            dealer: seat.startingSeat === roundNum,
+            startScore,
+            scoreChange: 0,
+            submittedRow: false,
+          })),
+        );
+      }
+
+      return { handId };
+    });
+    logger.debug(
+      {
+        query: 'insertFirstHand',
+        gameId,
+        handId: result.handId,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'hand.insertFirstHand',
+    );
+    return result;
+  },
+
+  insertNextHand: async (
+    previousHandId: number,
+    wind: Wind,
+    roundNum: number,
+    honba: number,
+  ): Promise<HandIdDto> => {
+    const start = performance.now();
+    const result = await db.transaction(async (tx) => {
+      const previous = await tx
+        .select()
+        .from(handInfo)
+        .where(eq(handInfo.handId, previousHandId))
+        .limit(1);
+      const prev = previous[0];
+      if (!prev) {
+        throw new Error(`Previous hand ${previousHandId} not found`);
+      }
+
+      const handId = await allocateNextHandId(tx);
+      const baseId = await allocateNextHandPlayerResultIdBase(tx);
+
+      await tx.insert(handInfo).values({
+        handId,
+        gameId: prev.gameId,
+        handNum: prev.handNum + 1,
+        wind,
+        roundNum,
+        honba,
+        riichiDeposits: prev.riichiDeposits,
+      });
+
+      const seats = await tx
+        .select({
+          startingSeat: gameResult.startingSeat,
+          playerId: gameResult.playerId,
+          endScore: handPlayerResult.endScore,
+        })
+        .from(gameResult)
+        .innerJoin(
+          handPlayerResult,
+          and(
+            eq(handPlayerResult.gameInfo, gameResult.gameId),
+            eq(handPlayerResult.playerId, gameResult.playerId),
+            eq(handPlayerResult.handId, previousHandId),
+          ),
+        )
+        .where(eq(gameResult.gameId, prev.gameId))
+        .orderBy(asc(gameResult.startingSeat));
+
+      if (seats.length > 0) {
+        await tx.insert(handPlayerResult).values(
+          seats.map((seat, index) => ({
+            handPlayerResultId: baseId + index + 1,
+            gameInfo: prev.gameId,
+            handId,
+            playerId: seat.playerId as number,
+            dealer: seat.startingSeat === roundNum,
+            startScore: seat.endScore as number,
+            scoreChange: 0,
+            submittedRow: false,
+          })),
+        );
+      }
+
+      return { handId };
+    });
+    logger.debug(
+      {
+        query: 'insertNextHand',
+        previousHandId,
+        handId: result.handId,
+        wind,
+        roundNum,
+        honba,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'hand.insertNextHand',
+    );
+    return result;
   },
 };

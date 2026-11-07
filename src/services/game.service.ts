@@ -10,6 +10,7 @@ import type {
   PenaltyDto,
   PlayerInfo,
   RulesetInfoSelect,
+  SeatPlayerResponseDto,
   UpdateGamePatch,
   UpdateGameResponseDto,
   VenueModeDto,
@@ -17,6 +18,7 @@ import type {
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
 import { gameRepository } from '#repositories/game.repository.js';
+import { handRepository } from '#repositories/hand.repository.js';
 import { modeRepository } from '#repositories/mode.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
 import { rulesetRepository } from '#repositories/ruleset.repository.js';
@@ -31,6 +33,53 @@ const assertGameExists = async (gameId: number): Promise<void> => {
 };
 
 export const gameService = {
+  addGamePlayer: async (
+    gameId: number,
+    startingSeat: number,
+    playerId: number,
+  ): Promise<SeatPlayerResponseDto> => {
+    if (
+      !Number.isFinite(startingSeat) ||
+      !Number.isInteger(startingSeat) ||
+      startingSeat < 1 ||
+      startingSeat > 4
+    ) {
+      throw new BadRequestError(
+        'Starting seat must be an integer between 1 and 4',
+        'json',
+      );
+    }
+    await assertGameExists(gameId);
+    const player = await playerRepository.findById(playerId);
+    if (player === undefined) {
+      throw new NotFoundError('Player not found', 'json');
+    }
+    const ruleset = await gameRepository.findRulesetByGameId(gameId);
+    const finalScore = ruleset?.initialValue ?? 250;
+    await gameRepository.insertGameResult({
+      gameId,
+      startingSeat,
+      playerId,
+      finalScore,
+    });
+    logger.debug(
+      { gameId, startingSeat, playerId, finalScore },
+      'Seated player on game',
+    );
+    return { gameId, startingSeat, playerId };
+  },
+
+  createFirstHand: async (gameId: number): Promise<HandIdDto> => {
+    await assertGameExists(gameId);
+    const seated = await gameRepository.findFirstResultByGameId(gameId);
+    if (seated === undefined) {
+      throw new BadRequestError('Game has no seated players', 'json');
+    }
+    const result = await handRepository.insertFirstHand(gameId);
+    logger.debug({ gameId, handId: result.handId }, 'Created first hand');
+    return result;
+  },
+
   createDraftGame: async (
     telegramId: number,
   ): Promise<CreateGameResponseDto> => {

@@ -10,6 +10,8 @@ export type Status = (typeof playerStatusEnum.enumValues)[number];
 vi.mock('#services/game.service.js', () => ({
   gameService: {
     createDraftGame: vi.fn(),
+    addGamePlayer: vi.fn(),
+    createFirstHand: vi.fn(),
     updateGame: vi.fn(),
     getPlayers: vi.fn(),
     getRuleset: vi.fn(),
@@ -46,6 +48,47 @@ describe('createGame', () => {
     expect(mockedService.createDraftGame).toHaveBeenCalledWith(99);
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ gameId: 10 });
+  });
+});
+
+describe('createFirstHand', () => {
+  it('returns 201 with handId', async () => {
+    mockedService.createFirstHand.mockResolvedValue({ handId: 55 });
+
+    const req = { params: { id: '7' }, body: {} } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.createFirstHand(req, res);
+
+    expect(mockedService.createFirstHand).toHaveBeenCalledWith(7);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ handId: 55 });
+  });
+});
+
+describe('addGamePlayer', () => {
+  it('returns 201 with seat response', async () => {
+    mockedService.addGamePlayer.mockResolvedValue({
+      gameId: 7,
+      startingSeat: 2,
+      playerId: 3,
+    });
+
+    const req = {
+      params: { id: '7' },
+      body: { startingSeat: 2, playerId: 3 },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.addGamePlayer(req, res);
+
+    expect(mockedService.addGamePlayer).toHaveBeenCalledWith(7, 2, 3);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      gameId: 7,
+      startingSeat: 2,
+      playerId: 3,
+    });
   });
 });
 
