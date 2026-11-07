@@ -14,6 +14,31 @@ const logger = createLogger('player.repository');
 const BOT_PLAYER_ID_CEILING = 100_000;
 
 export const playerRepository = {
+  insert: async ({
+    displayName,
+  }: {
+    displayName: string;
+  }): Promise<PlayerInfo> => {
+    const start = performance.now();
+    const rows = await db
+      .insert(playerInfo)
+      .values({ displayName })
+      .returning();
+    const player = rows[0];
+    if (player === undefined) {
+      throw new Error('Failed to insert player');
+    }
+    logger.debug(
+      {
+        query: 'insert',
+        playerId: player.playerId,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'player.insert',
+    );
+    return player;
+  },
+
   findAll: async (): Promise<PlayerInfo[]> => {
     const start = performance.now();
     const players = await db.query.playerInfo.findMany();

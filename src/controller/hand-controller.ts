@@ -1,7 +1,20 @@
+import type { Wind } from '#db/types.js';
 import { handService } from '#services/hand.service.js';
 import { type Request, type Response } from 'express';
 
 const handController = {
+  async createNextHand(req: Request, res: Response) {
+    const previousHandId = Number(req.params.id);
+    const roundNum = Number(req.body?.roundNum);
+    const honba = Number(req.body?.honba);
+    const result = await handService.createNextHand(previousHandId, {
+      wind: String(req.body?.wind ?? '') as Wind,
+      roundNum,
+      honba,
+    });
+    res.status(201).json(result);
+  },
+
   async getHandDetails(req: Request, res: Response) {
     const handId = Number(req.params.id);
     const result = await handService.getHandDetails(handId);

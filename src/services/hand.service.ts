@@ -1,17 +1,59 @@
 import type {
+  CreateNextHandDto,
   HandDetailsDto,
+  HandIdDto,
   HasOutcomeDto,
   MultipleRonStatusDto,
   PlayerInfo,
   ScoreCalcInputDto,
+  Wind,
 } from '#db/types.js';
-import { NotFoundError } from '#errors/app-error.js';
+import { windEnum } from '#drizzle/schema.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
 import { handRepository } from '#repositories/hand.repository.js';
 
 const logger = createLogger('hand.service');
 
+const VALID_WINDS = new Set<Wind>(windEnum.enumValues);
+
 export const handService = {
+  createNextHand: async (
+    previousHandId: number,
+    input: CreateNextHandDto,
+  ): Promise<HandIdDto> => {
+    const { wind, roundNum, honba } = input;
+    if (!VALID_WINDS.has(wind)) {
+      throw new BadRequestError('Invalid wind', 'json');
+    }
+    if (
+      !Number.isFinite(roundNum) ||
+      !Number.isInteger(roundNum) ||
+      !Number.isFinite(honba) ||
+      !Number.isInteger(honba)
+    ) {
+      throw new BadRequestError(
+        'roundNum and honba must be finite integers',
+        'json',
+      );
+    }
+    const exists = await handRepository.existsById(previousHandId);
+    if (!exists) {
+      throw new NotFoundError('Hand not found', 'json');
+    }
+    const result = await handRepository.insertNextHand(
+      previousHandId,
+      wind,
+      roundNum,
+      honba,
+    );
+    logger.debug(
+      { previousHandId, handId: result.handId, wind, roundNum, honba },
+      'Created next hand',
+    );
+    return result;
+  },
+
   getHandDetails: async (handId: number): Promise<HandDetailsDto> => {
     const details = await handRepository.findHandDetails(handId);
     if (!details) {

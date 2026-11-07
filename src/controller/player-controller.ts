@@ -2,6 +2,12 @@ import { playerService } from '#services/player.service.js';
 import { type Request, type Response } from 'express';
 
 const playerController = {
+  createPlayer: async (req: Request, res: Response) => {
+    const displayName = String(req.body?.displayName ?? '');
+    const player = await playerService.create(displayName);
+    res.status(201).json(player);
+  },
+
   getAllPlayers: async (req: Request, res: Response) => {
     const result = await playerService.list();
     res.json(result);

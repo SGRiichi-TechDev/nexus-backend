@@ -83,7 +83,8 @@ VALUES
   (9003, 'IT Carol', 900003, 'active', 'SG', 'SGP'),
   (9004, 'IT Dave', 900004, 'active', 'SG', 'SGP'),
   (9005, 'IT Eve', 900005, 'active', 'SG', 'SGP'),
-  (9006, 'IT Fran', 900006, 'active', 'SG', 'SGP');
+  (9006, 'IT Fran', 900006, 'active', 'SG', 'SGP'),
+  (9010, 'IT Scratch', 900010, 'active', 'SG', 'SGP');
 
 INSERT INTO public.game_info (
   game_id,

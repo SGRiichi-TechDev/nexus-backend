@@ -1,15 +1,23 @@
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { gameRepository } from '#repositories/game.repository.js';
+import { handRepository } from '#repositories/hand.repository.js';
 import { modeRepository } from '#repositories/mode.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
 import { rulesetRepository } from '#repositories/ruleset.repository.js';
 import { gameService } from '#services/game.service.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('#repositories/hand.repository.js', () => ({
+  handRepository: {
+    insertFirstHand: vi.fn(),
+  },
+}));
+
 vi.mock('#repositories/game.repository.js', () => ({
   gameRepository: {
     allocateNextGameId: vi.fn(),
     insertDraftGame: vi.fn(),
+    insertGameResult: vi.fn(),
     updateGameFields: vi.fn(),
     existsById: vi.fn(),
     findFirstResultByGameId: vi.fn(),
@@ -28,6 +36,7 @@ vi.mock('#repositories/game.repository.js', () => ({
 
 vi.mock('#repositories/player.repository.js', () => ({
   playerRepository: {
+    findById: vi.fn(),
     findByTelegramId: vi.fn(),
   },
 }));
@@ -46,6 +55,7 @@ vi.mock('#repositories/ruleset.repository.js', () => ({
 }));
 
 const mockedRepo = vi.mocked(gameRepository);
+const mockedHandRepo = vi.mocked(handRepository);
 const mockedModeRepo = vi.mocked(modeRepository);
 const mockedRulesetRepo = vi.mocked(rulesetRepository);
 const mockedPlayerRepo = vi.mocked(playerRepository);
@@ -53,6 +63,108 @@ const mockedPlayerRepo = vi.mocked(playerRepository);
 beforeEach(() => {
   vi.clearAllMocks();
   mockedRepo.existsById.mockResolvedValue(true);
+});
+
+describe('gameService.createFirstHand', () => {
+  it('throws NotFoundError when game does not exist', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.createFirstHand(1)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(mockedHandRepo.insertFirstHand).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestError when game has no seated players', async () => {
+    mockedRepo.findFirstResultByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.createFirstHand(1)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    expect(mockedHandRepo.insertFirstHand).not.toHaveBeenCalled();
+  });
+
+  it('returns handId when seats exist', async () => {
+    mockedRepo.findFirstResultByGameId.mockResolvedValue({
+      gameId: 1,
+    } as never);
+    mockedHandRepo.insertFirstHand.mockResolvedValue({ handId: 42 });
+
+    await expect(gameService.createFirstHand(1)).resolves.toEqual({
+      handId: 42,
+    });
+    expect(mockedHandRepo.insertFirstHand).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('gameService.addGamePlayer', () => {
+  it('throws NotFoundError when game does not exist', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.addGamePlayer(1, 1, 5)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(mockedPlayerRepo.findById).not.toHaveBeenCalled();
+    expect(mockedRepo.insertGameResult).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundError when player does not exist', async () => {
+    mockedPlayerRepo.findById.mockResolvedValue(undefined);
+
+    await expect(gameService.addGamePlayer(1, 2, 5)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(mockedRepo.insertGameResult).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestError for invalid starting seat', async () => {
+    await expect(gameService.addGamePlayer(1, 0, 5)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    await expect(gameService.addGamePlayer(1, 5, 5)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    await expect(gameService.addGamePlayer(1, 1.5, 5)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    expect(mockedRepo.existsById).not.toHaveBeenCalled();
+  });
+
+  it('uses initialValue from ruleset when present', async () => {
+    mockedPlayerRepo.findById.mockResolvedValue({ playerId: 5 } as never);
+    mockedRepo.findRulesetByGameId.mockResolvedValue({
+      initialValue: 30000,
+    } as never);
+
+    await expect(gameService.addGamePlayer(1, 3, 5)).resolves.toEqual({
+      gameId: 1,
+      startingSeat: 3,
+      playerId: 5,
+    });
+    expect(mockedRepo.insertGameResult).toHaveBeenCalledWith({
+      gameId: 1,
+      startingSeat: 3,
+      playerId: 5,
+      finalScore: 30000,
+    });
+  });
+
+  it('defaults finalScore to 250 when ruleset is missing', async () => {
+    mockedPlayerRepo.findById.mockResolvedValue({ playerId: 5 } as never);
+    mockedRepo.findRulesetByGameId.mockResolvedValue(undefined);
+
+    await expect(gameService.addGamePlayer(1, 4, 5)).resolves.toEqual({
+      gameId: 1,
+      startingSeat: 4,
+      playerId: 5,
+    });
+    expect(mockedRepo.insertGameResult).toHaveBeenCalledWith({
+      gameId: 1,
+      startingSeat: 4,
+      playerId: 5,
+      finalScore: 250,
+    });
+  });
 });
 
 describe('gameService.createDraftGame', () => {

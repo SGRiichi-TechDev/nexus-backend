@@ -3,6 +3,7 @@ import express, { type Router } from 'express';
 
 const router: Router = express.Router();
 
+router.post('/', playerController.createPlayer);
 router.get('/', playerController.getAllPlayers);
 router.get('/current-game', playerController.getCurrentGameForPlayer);
 router.get('/by-telegram/:telegramId', playerController.getPlayerByTelegramId);

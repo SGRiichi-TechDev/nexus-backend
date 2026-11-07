@@ -11,6 +11,7 @@ on:
       - 'supabase/seed.sql'
       - '.github/workflows/docker-db.yaml'
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - develop

@@ -9,6 +9,7 @@ export type Status = (typeof playerStatusEnum.enumValues)[number];
 
 vi.mock('#services/player.service.js', () => ({
   playerService: {
+    create: vi.fn(),
     list: vi.fn(),
     getById: vi.fn(),
     getByTelegramId: vi.fn(),
@@ -31,6 +32,29 @@ const mockResponse = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('createPlayer', () => {
+  it('returns 201 with created player body', async () => {
+    const created = {
+      telegramId: null,
+      playerId: 10,
+      displayName: 'Guest',
+      status: 'active' as Status,
+      ctryCd: '',
+      ctyCd: '',
+    };
+    mockedService.create.mockResolvedValue(created);
+
+    const req = { body: { displayName: 'Guest' } } as unknown as Request;
+    const res = mockResponse();
+
+    await playerController.createPlayer(req, res);
+
+    expect(mockedService.create).toHaveBeenCalledWith('Guest');
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(created);
+  });
 });
 
 describe('getAllPlayers', () => {

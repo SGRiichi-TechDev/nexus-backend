@@ -460,6 +460,37 @@ export const gameRepository = {
     return rows.map((row) => row.telegramId as number);
   },
 
+  insertGameResult: async ({
+    gameId,
+    startingSeat,
+    playerId,
+    finalScore,
+  }: {
+    gameId: number;
+    startingSeat: number;
+    playerId: number;
+    finalScore: number;
+  }): Promise<void> => {
+    const start = performance.now();
+    await db.insert(gameResult).values({
+      gameId,
+      startingSeat,
+      playerId,
+      finalScore,
+    });
+    logger.debug(
+      {
+        query: 'insertGameResult',
+        gameId,
+        startingSeat,
+        playerId,
+        finalScore,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.insertGameResult',
+    );
+  },
+
   findVenueAndModeByGameId: async (
     gameId: number,
   ): Promise<VenueModeDto | undefined> => {
