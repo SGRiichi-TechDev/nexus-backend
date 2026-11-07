@@ -22,9 +22,18 @@ describe('GET /api/v1/games/:id/final-score', () => {
     expect(res.body.individual).toEqual([...FIXTURES.finalScores]);
   });
 
-  it('returns 204 when the game has no ruleset or seats', async () => {
+  it('returns 204 when the game has no ruleset', async () => {
     const res = await client.get(
       `/api/v1/games/${FIXTURES.emptyGameId}/final-score`,
+    );
+
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+  });
+
+  it('returns 204 when the game has a ruleset but no seats', async () => {
+    const res = await client.get(
+      `/api/v1/games/${FIXTURES.rulesetOnlyGameId}/final-score`,
     );
 
     expect(res.status).toBe(204);

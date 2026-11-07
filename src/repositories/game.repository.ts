@@ -318,7 +318,7 @@ export const gameRepository = {
       'game.findFinalScoreByGameId',
     );
 
-    if (!settings[0]) return undefined;
+    if (!settings[0] || individual.length === 0) return undefined;
 
     return {
       ...settings[0],

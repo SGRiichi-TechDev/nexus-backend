@@ -8,6 +8,8 @@ export const FIXTURES = {
   gameId: 9001,
   /** Draft game with no venue/ruleset/seats/hands (recorder: Eve). */
   emptyGameId: 9002,
+  /** Draft with ruleset/venue but no seats (recorder: Fran). */
+  rulesetOnlyGameId: 9003,
   handId: 90010,
   recorderTelegramId: 900001,
   emptyGameRecorderTelegramId: 900005,
@@ -18,6 +20,7 @@ export const FIXTURES = {
     { playerId: 9003, displayName: 'IT Carol', telegramId: 900003 },
     { playerId: 9004, displayName: 'IT Dave', telegramId: 900004 },
     { playerId: 9005, displayName: 'IT Eve', telegramId: 900005 },
+    { playerId: 9006, displayName: 'IT Fran', telegramId: 900006 },
   ],
   ruleset: {
     initialValue: 25000,

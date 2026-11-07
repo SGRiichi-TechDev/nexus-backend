@@ -82,7 +82,8 @@ VALUES
   (9002, 'IT Bob', 900002, 'active', 'SG', 'SGP'),
   (9003, 'IT Carol', 900003, 'active', 'SG', 'SGP'),
   (9004, 'IT Dave', 900004, 'active', 'SG', 'SGP'),
-  (9005, 'IT Eve', 900005, 'active', 'SG', 'SGP');
+  (9005, 'IT Eve', 900005, 'active', 'SG', 'SGP'),
+  (9006, 'IT Fran', 900006, 'active', 'SG', 'SGP');
 
 INSERT INTO public.game_info (
   game_id,
@@ -135,6 +136,24 @@ VALUES
     false,
     NULL,
     NULL,
+    'positional',
+    NULL,
+    'draft'
+  ),
+  (
+    9003,
+    9001,
+    9001,
+    9001,
+    9006,
+    false,
+    false,
+    false,
+    false,
+    0,
+    false,
+    true,
+    9001,
     'positional',
     NULL,
     'draft'

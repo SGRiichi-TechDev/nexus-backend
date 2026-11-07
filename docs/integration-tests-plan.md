@@ -64,9 +64,10 @@ Minimal deterministic rows (IDs in a reserved `9xxx` range):
 - 1 venue (`status=true`), 1 mode (`status=true`)
 - 1 ruleset (open effective dates; uma columns filled)
 - 1 `uma_positional_lookup` row so `game_info` satisfies `calculation_method='positional'` + `positional_uma_id` / null `floating_scheme_id`
-- 5 `player_info` rows; Alice recorder `telegram_id=900001`, Eve recorder `telegram_id=900005`
+- 6 `player_info` rows; Alice recorder `telegram_id=900001`, Eve recorder `telegram_id=900005`, Fran recorder `telegram_id=900006`
 - Incomplete populated game: `game_id=9001`, `completed=false`, `deleted=false`, `status='draft'`, linked venue/mode/ruleset/recorder
 - Incomplete empty draft: `game_id=9002`, no venue/mode/ruleset/seats/hands (Eve)
+- Incomplete ruleset-only draft: `game_id=9003`, venue/mode/ruleset set, no seats/hands (Fran)
 - 4 `game_result` rows (seats 0–3) with scores/positions/penalties for game 9001
 - 1 completed hand: `hand_id=90010` with 4 `hand_player_result` rows + 1 `hand_win`
 - One unused telegram id for 404 cases
@@ -94,7 +95,7 @@ Add dev deps: `supertest`, `@types/supertest`.
 | `players.current-game.test.ts` | `GET /api/v1/players/current-game?telegramId=` | 200: `gameId`, `status`, 4 players; empty draft; unknown telegram → 404; non-recorder → 204 |
 | `hands.details.test.ts` | `GET /api/v1/hands/:id` | 200: hand meta + seat-ordered `individualResult`; missing → 404 |
 | `games.ruleset.test.ts` | `GET /api/v1/games/:id/ruleset` | 200 populated; 204 empty draft; 404 missing game |
-| `games.final-score.test.ts` | `GET /api/v1/games/:id/final-score` | 200 populated; 204 empty draft; 404 missing game |
+| `games.final-score.test.ts` | `GET /api/v1/games/:id/final-score` | 200 populated; 204 empty draft; 204 ruleset-only; 404 missing game |
 | `games.optional-reads.test.ts` | last-completed / last-for-next / venue-mode / players / modes | 204 or `[]` on empty draft |
 
 Each file uses `api(createApp())` so requests include `x-api-key`.
