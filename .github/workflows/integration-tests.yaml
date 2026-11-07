@@ -17,6 +17,7 @@ on:
       - 'package-lock.json'
       - '.github/workflows/integration-tests.yaml'
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches:
       - main
       - develop
