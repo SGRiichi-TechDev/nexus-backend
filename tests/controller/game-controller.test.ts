@@ -9,6 +9,8 @@ export type Status = (typeof playerStatusEnum.enumValues)[number];
 
 vi.mock('#services/game.service.js', () => ({
   gameService: {
+    createDraftGame: vi.fn(),
+    updateGame: vi.fn(),
     getPlayers: vi.fn(),
     getRuleset: vi.fn(),
   },
@@ -25,6 +27,42 @@ const mockResponse = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('createGame', () => {
+  it('returns 201 with gameId', async () => {
+    mockedService.createDraftGame.mockResolvedValue({ gameId: 10 });
+
+    const req = { body: { telegramId: 99 } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.createGame(req, res);
+
+    expect(mockedService.createDraftGame).toHaveBeenCalledWith(99);
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 10 });
+  });
+});
+
+describe('updateGame', () => {
+  it('returns 200 with gameId', async () => {
+    mockedService.updateGame.mockResolvedValue({ gameId: 1 });
+
+    const req = {
+      params: { id: '1' },
+      body: { venueId: 2, isRecorded: true },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.updateGame(req, res);
+
+    expect(mockedService.updateGame).toHaveBeenCalledWith(1, {
+      venueId: 2,
+      isRecorded: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
 });
 
 describe('getPlayersByGameId', () => {

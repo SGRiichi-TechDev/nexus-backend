@@ -5,6 +5,10 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
     },
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/integration/**',
+    ],
   },
 });

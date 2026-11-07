@@ -7,13 +7,23 @@ This is a **database-only** stack for app development. It does not start Auth, S
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) (or a compatible engine such as OrbStack)
-- Port **54322** free on the host
+- Port **54322** free on the host (dev DB)
+- Port **54323** free when running integration tests
 
 If you already use the Supabase CLI locally, stop it first so it does not hold the same port:
 
 ```bash
 supabase stop
 ```
+
+## Ports and projects
+
+| Use              | Compose project | Host port | Seed                          |
+| ---------------- | --------------- | --------- | ----------------------------- |
+| Dev DB           | `nexus-backend` | `54322`   | `supabase/seed.sql`           |
+| Integration tests | `nexus-it`     | `54323`   | `supabase/seed.integration.sql` |
+
+Dev and IT stacks must stay separate. Never point integration tests at the shared `.env` `DATABASE_URL` or the persistent `54322` volume.
 
 ## Quick start
 
@@ -37,6 +47,16 @@ On first start (empty volume):
 3. `../supabase/seed.sql` is loaded once
 
 Later starts skip already-applied migrations and skip seeding.
+
+## Integration tests
+
+Requires Docker. From the repository root:
+
+```bash
+npm run test:integration
+```
+
+This script starts Compose project `nexus-it` on port **54323**, migrates, applies `seed.integration.sql`, runs Vitest IT, then `down -v` (always tears down volumes).
 
 ## Connection
 

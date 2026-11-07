@@ -14,7 +14,10 @@ vi.mock('#services/player.service.js', () => ({
   playerService: {
     list: vi.fn(),
     getById: vi.fn(),
+    getByTelegramId: vi.fn(),
+    searchByName: vi.fn(),
     getCurrentGame: vi.fn(),
+    getActiveParticipation: vi.fn(),
   },
 }));
 
@@ -92,12 +95,12 @@ describe('getPlayerById', () => {
     };
     mockedService.getById.mockResolvedValue(fakePlayer);
 
-    const req = { params: { id: '1' } } as unknown as Request;
+    const req = { params: { id: '1' }, query: {} } as unknown as Request;
     const res = mockResponse();
 
     await playerController.getPlayerById(req, res);
 
-    expect(mockedService.getById).toHaveBeenCalledWith(1);
+    expect(mockedService.getById).toHaveBeenCalledWith(1, false);
     expect(res.json).toHaveBeenCalledWith(fakePlayer);
   });
 
@@ -106,7 +109,7 @@ describe('getPlayerById', () => {
       new NotFoundError('Player not found', 'text'),
     );
 
-    const req = { params: { id: '999' } } as unknown as Request;
+    const req = { params: { id: '999' }, query: {} } as unknown as Request;
     const res = mockResponse();
 
     await expect(
@@ -117,7 +120,7 @@ describe('getPlayerById', () => {
   it('propagates unexpected errors', async () => {
     mockedService.getById.mockRejectedValue(new Error('DB error'));
 
-    const req = { params: { id: '1' } } as unknown as Request;
+    const req = { params: { id: '1' }, query: {} } as unknown as Request;
     const res = mockResponse();
 
     await expect(playerController.getPlayerById(req, res)).rejects.toThrow(
@@ -177,6 +180,8 @@ describe('getCurrentGameForPlayer', () => {
       han: 3,
       finalScoreOnly: false,
       multipleRon: false,
+      isRecordingMultipleRon: false,
+      players: [],
     };
 
     mockedService.getCurrentGame.mockResolvedValue(fakeGame);

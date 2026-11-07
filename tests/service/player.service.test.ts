@@ -8,13 +8,18 @@ vi.mock('#repositories/player.repository.js', () => ({
   playerRepository: {
     findAll: vi.fn(),
     findById: vi.fn(),
+    findByIdRegistered: vi.fn(),
     findByTelegramId: vi.fn(),
+    findByName: vi.fn(),
+    findActiveParticipation: vi.fn(),
   },
 }));
 
 vi.mock('#repositories/game.repository.js', () => ({
   gameRepository: {
     findCurrentIncompleteByRecorder: vi.fn(),
+    findPlayersOrderedBySeat: vi.fn(),
+    countHandWinsByHandId: vi.fn(),
   },
 }));
 
@@ -92,15 +97,60 @@ describe('playerService.getCurrentGame', () => {
   });
 
   it('returns current game on success', async () => {
-    const game = { gameId: 10 } as never;
+    const game = {
+      gameId: 10,
+      status: 'draft' as const,
+      handId: 1,
+      handOutcome: null,
+      isRecorded: true,
+      han: null,
+      finalScoreOnly: false,
+      multipleRon: false,
+    };
     mockedPlayerRepo.findByTelegramId.mockResolvedValue({
       playerId: 1,
     } as never);
     mockedGameRepo.findCurrentIncompleteByRecorder.mockResolvedValue(game);
+    mockedGameRepo.findPlayersOrderedBySeat.mockResolvedValue([]);
 
-    await expect(playerService.getCurrentGame(12345)).resolves.toEqual(game);
+    await expect(playerService.getCurrentGame(12345)).resolves.toEqual({
+      ...game,
+      multipleRon: false,
+      isRecordingMultipleRon: false,
+      players: [],
+    });
     expect(mockedGameRepo.findCurrentIncompleteByRecorder).toHaveBeenCalledWith(
       1,
     );
+    expect(mockedGameRepo.findPlayersOrderedBySeat).toHaveBeenCalledWith(10);
+  });
+});
+
+describe('playerService.getByTelegramId', () => {
+  it('throws BadRequestError for falsy telegramId', async () => {
+    await expect(playerService.getByTelegramId(0)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+  });
+
+  it('returns player when found', async () => {
+    const player = { playerId: 1 } as never;
+    mockedPlayerRepo.findByTelegramId.mockResolvedValue(player);
+
+    await expect(playerService.getByTelegramId(12345)).resolves.toEqual(player);
+  });
+});
+
+describe('playerService.getActiveParticipation', () => {
+  it('returns null ids when no active game', async () => {
+    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
+      playerId: 1,
+    } as never);
+    mockedPlayerRepo.findActiveParticipation.mockResolvedValue(undefined);
+
+    await expect(playerService.getActiveParticipation(12345)).resolves.toEqual({
+      gameId: null,
+      handId: null,
+    });
   });
 });
