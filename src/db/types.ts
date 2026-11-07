@@ -30,7 +30,7 @@ export type RulesetInfoSelect = Pick<
 /** Projection returned by findCurrentIncompleteByRecorder */
 export type CurrentGameDto = {
   gameId: InferSelectModel<typeof gameInfo>['gameId'];
-  submissionStage: InferSelectModel<typeof gameInfo>['submissionStage'];
+  status: InferSelectModel<typeof gameInfo>['status'];
   handId: InferSelectModel<typeof handInfo>['handId'] | null;
   handOutcome: InferSelectModel<typeof handInfo>['handOutcome'] | null;
   isRecorded: InferSelectModel<typeof gameInfo>['isRecorded'];

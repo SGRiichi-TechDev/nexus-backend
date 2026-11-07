@@ -170,7 +170,7 @@ describe('getCurrentGameForPlayer', () => {
   it('returns the current game on success', async () => {
     const fakeGame = {
       gameId: 1,
-      submissionStage: 'in_progress',
+      status: 'draft' as const,
       handId: 5,
       handOutcome: 'Ron' as const,
       isRecorded: true,

@@ -2,7 +2,42 @@ import { defineRelations } from "drizzle-orm";
 import * as schema from "./schema.js";
 
 export const relations = defineRelations(schema, (r) => ({
+	cityLookup: {
+		countryLookup: r.one.countryLookup({
+			from: r.cityLookup.countryCode,
+			to: r.countryLookup.countryCode
+		}),
+		eventInfos: r.many.eventInfo(),
+	},
+	countryLookup: {
+		cityLookups: r.many.cityLookup(),
+		eventInfos: r.many.eventInfo(),
+	},
 	eventInfo: {
+		cityLookup: r.one.cityLookup({
+			from: r.eventInfo.cityCode,
+			to: r.cityLookup.cityCode
+		}),
+		countryLookup: r.one.countryLookup({
+			from: r.eventInfo.countryCode,
+			to: r.countryLookup.countryCode
+		}),
+		eventFormat: r.one.eventFormat({
+			from: r.eventInfo.formatId,
+			to: r.eventFormat.formatId
+		}),
+		eventInfo: r.one.eventInfo({
+			from: r.eventInfo.parentEventId,
+			to: r.eventInfo.eventId,
+			alias: "eventInfo_parentEventId_eventInfo_eventId"
+		}),
+		eventInfos: r.many.eventInfo({
+			alias: "eventInfo_parentEventId_eventInfo_eventId"
+		}),
+		venue: r.one.venue({
+			from: r.eventInfo.venueId,
+			to: r.venue.venueId
+		}),
 		rulesetInfo: r.one.rulesetInfo({
 			from: r.eventInfo.rulesetId,
 			to: r.rulesetInfo.rulesetId
@@ -11,6 +46,15 @@ export const relations = defineRelations(schema, (r) => ({
 			from: r.eventInfo.eventId.through(r.eventResult.eventId),
 			to: r.playerInfo.playerId.through(r.eventResult.playerId)
 		}),
+		gameInfos: r.many.gameInfo(),
+	},
+	eventFormat: {
+		eventInfos: r.many.eventInfo(),
+	},
+	venue: {
+		eventInfos: r.many.eventInfo(),
+		gameInfos: r.many.gameInfo(),
+		modes: r.many.mode(),
 	},
 	rulesetInfo: {
 		eventInfos: r.many.eventInfo(),
@@ -34,9 +78,17 @@ export const relations = defineRelations(schema, (r) => ({
 		playerDetails: r.many.playerDetails(),
 	},
 	gameInfo: {
+		eventInfo: r.one.eventInfo({
+			from: r.gameInfo.eventId,
+			to: r.eventInfo.eventId
+		}),
 		mode: r.one.mode({
 			from: r.gameInfo.modeId,
 			to: r.mode.modeId
+		}),
+		umaPositionalLookup: r.one.umaPositionalLookup({
+			from: r.gameInfo.positionalUmaId,
+			to: r.umaPositionalLookup.positionalUmaId
 		}),
 		rulesetInfo: r.one.rulesetInfo({
 			from: r.gameInfo.rulesetId,
@@ -60,9 +112,8 @@ export const relations = defineRelations(schema, (r) => ({
 			to: r.venue.venueId
 		}),
 	},
-	venue: {
+	umaPositionalLookup: {
 		gameInfos: r.many.gameInfo(),
-		modes: r.many.mode(),
 	},
 	handInfo: {
 		gameInfo: r.one.gameInfo({
@@ -117,7 +168,7 @@ export const relations = defineRelations(schema, (r) => ({
 	},
 	playerDetails: {
 		playerInfo: r.one.playerInfo({
-			from: r.playerDetails.pid,
+			from: r.playerDetails.playerId,
 			to: r.playerInfo.playerId
 		}),
 	},
