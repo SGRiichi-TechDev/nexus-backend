@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --env-file=.env src/server.ts",
     "build": "tsc",
-    "start": "node --env-file=.env --conditions=production dist/src/server.js"
+    "start": "node --conditions=production dist/src/server.js"
   },
   "repository": {
     "type": "git",
