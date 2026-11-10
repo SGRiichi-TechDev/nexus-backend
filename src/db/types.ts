@@ -227,3 +227,58 @@ export type CreateNextHandDto = {
   roundNum: number;
   honba: number;
 };
+
+export type PlayerIdListDto = {
+  playerIds: number[];
+};
+
+export type HandOutcomeDto = {
+  outcome: string;
+};
+
+export type PlayerOutcomeDto = {
+  outcome: string;
+};
+
+export type HanDto = {
+  han: number;
+};
+
+export type FuDto = {
+  fu: number;
+};
+
+export type HandMutationResponseDto = {
+  handId: number;
+  playerId?: number;
+};
+
+export type DrawPaymentItemDto = {
+  playerId: number;
+  outcome: string;
+  scoreChange: number;
+};
+
+export type DrawPaymentsDto = {
+  payments: DrawPaymentItemDto[];
+};
+
+export type ScoreChangeUpdateDto = {
+  handPlayerResultId: number;
+  scoreChange: number;
+  winner: boolean;
+};
+
+export type ApplyScoreChangesDto = {
+  updates: ScoreChangeUpdateDto[];
+  winnerHandValue: number | null;
+};
+
+export type CreateHandWinDto = {
+  winnerPlayerId: number;
+};
+
+export type HandWinCreateResponseDto = {
+  handId: number;
+  winnerPlayerId: number;
+};
