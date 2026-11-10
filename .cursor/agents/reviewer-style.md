@@ -1,7 +1,7 @@
 ---
 name: reviewer-style
 description: Specialist code reviewer. Use to review code for style.
-model: grok-4.6[effort=medium]
+model: grok-4.7[effort=high]
 user-invocable: false
 readonly: true
 ---

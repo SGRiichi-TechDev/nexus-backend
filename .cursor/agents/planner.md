@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Specialist software architect. Plans complex changes before implementation. Use when decomposing a feature or change request into an ordered, implementable task graph.
-model: grok-4.6[effort=high]
+model: grok-4.7[effort=high]
 user-invocable: false
 readonly: false
 ---

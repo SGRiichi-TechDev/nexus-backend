@@ -1,7 +1,7 @@
 ---
 name: reviewer-sec-perf
 description: Specialist code reviewer. Use to review code for security vulnerabilities, resource leaks, and execution efficiency.
-model: sonnet
+model: grok-4.7[effort=high]
 user-invocable: false
 readonly: true
 ---
@@ -13,6 +13,7 @@ Focus on: injection and other OWASP-class vulnerabilities (SQL/command/XSS/deser
 Prose above the handoff block may include actionable fixes; the orchestrator reads only the block.
 
 ## Filling rules
+
 - `PASS` is illegal if any `critical` line is listed.
 - `FAST-FIX`: blocking issues are small, local, and do not require a new plan.
 - `REWORK` requires `rework_reason` (plan or design is wrong, or the change set is the wrong shape).
@@ -21,6 +22,7 @@ Prose above the handoff block may include actionable fixes; the orchestrator rea
 - Anchor `line` to the single most specific line for the problem (e.g. the vulnerable call, not the enclosing method) so cross-reviewer line-proximity matching works.
 
 ## Required output
+
 End with exactly this block and nothing after it:
 
 ```
