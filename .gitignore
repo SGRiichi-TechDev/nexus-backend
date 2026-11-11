@@ -2,7 +2,7 @@
 /node_modules
 .agent/
 .DS_Store
-.cursor/plans
+.cursor/plans/*
 
 # Drizzle-related migration folders and files
 /drizzle/**/

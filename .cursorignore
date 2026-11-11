@@ -1,0 +1,3 @@
+# Re-include gitignored plan files for @ mentions / agent access
+!.cursor/plans/
+!.cursor/plans/**
