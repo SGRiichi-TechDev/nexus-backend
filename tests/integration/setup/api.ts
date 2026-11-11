@@ -16,5 +16,6 @@ export const api = (app: Express) => {
     get: (url: string) => request(app).get(url).set('x-api-key', key),
     post: (url: string) => request(app).post(url).set('x-api-key', key),
     patch: (url: string) => request(app).patch(url).set('x-api-key', key),
+    put: (url: string) => request(app).put(url).set('x-api-key', key),
   };
 };
