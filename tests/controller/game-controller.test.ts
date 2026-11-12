@@ -123,6 +123,7 @@ describe('getPlayersByGameId', () => {
         status: 'active' as Status,
         ctryCd: '',
         ctyCd: '',
+        statusReason: null,
       },
       {
         telegramId: 2,
@@ -131,6 +132,7 @@ describe('getPlayersByGameId', () => {
         status: 'active' as Status,
         ctryCd: '',
         ctyCd: '',
+        statusReason: null,
       },
       {
         telegramId: 3,
@@ -139,6 +141,7 @@ describe('getPlayersByGameId', () => {
         status: 'active' as Status,
         ctryCd: '',
         ctyCd: '',
+        statusReason: null,
       },
       {
         telegramId: 4,
@@ -147,6 +150,7 @@ describe('getPlayersByGameId', () => {
         status: 'active' as Status,
         ctryCd: '',
         ctyCd: '',
+        statusReason: null,
       },
     ];
 

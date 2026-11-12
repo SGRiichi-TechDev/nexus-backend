@@ -2,6 +2,42 @@ import { defineRelations } from "drizzle-orm";
 import * as schema from "./schema.js";
 
 export const relations = defineRelations(schema, (r) => ({
+	appSettings: {
+		user: r.one.users({
+			from: r.appSettings.updatedBy,
+			to: r.users.id
+		}),
+	},
+	users: {
+		appSettings: r.many.appSettings(),
+		auditLogs: r.many.auditLog(),
+		telegramAdminActions: r.many.telegramAdminActions(),
+		telegramAdminLinkTokens: r.many.telegramAdminLinkTokens(),
+		telegramAdminLinks: r.many.telegramAdminLinks(),
+		telegramOutboxes: r.many.telegramOutbox(),
+		userRolesGrantedBy: r.many.userRoles({
+			alias: "userRoles_grantedBy_users_id"
+		}),
+		userRolesUserId: r.many.userRoles({
+			alias: "userRoles_userId_users_id"
+		}),
+		playerInfo: r.one.playerInfo({
+			from: r.users.playerId,
+			to: r.playerInfo.playerId
+		}),
+		venueOrganisersGrantedBy: r.many.venueOrganisers({
+			alias: "venueOrganisers_grantedBy_users_id"
+		}),
+		venueOrganisersUserId: r.many.venueOrganisers({
+			alias: "venueOrganisers_userId_users_id"
+		}),
+	},
+	auditLog: {
+		user: r.one.users({
+			from: r.auditLog.actorUserId,
+			to: r.users.id
+		}),
+	},
 	cityLookup: {
 		countryLookup: r.one.countryLookup({
 			from: r.cityLookup.countryCode,
@@ -55,6 +91,7 @@ export const relations = defineRelations(schema, (r) => ({
 		eventInfos: r.many.eventInfo(),
 		gameInfos: r.many.gameInfo(),
 		modes: r.many.mode(),
+		venueOrganisers: r.many.venueOrganisers(),
 	},
 	rulesetInfo: {
 		eventInfos: r.many.eventInfo(),
@@ -76,6 +113,8 @@ export const relations = defineRelations(schema, (r) => ({
 		}),
 		handInfos: r.many.handInfo(),
 		playerDetails: r.many.playerDetails(),
+		registrations: r.many.registrations(),
+		users: r.many.users(),
 	},
 	gameInfo: {
 		eventInfo: r.one.eventInfo({
@@ -172,6 +211,12 @@ export const relations = defineRelations(schema, (r) => ({
 			to: r.playerInfo.playerId
 		}),
 	},
+	registrations: {
+		playerInfo: r.one.playerInfo({
+			from: r.registrations.playerId,
+			to: r.playerInfo.playerId
+		}),
+	},
 	permissions: {
 		roles: r.many.roles({
 			from: r.permissions.id.through(r.rolePermissions.permissionId),
@@ -184,6 +229,30 @@ export const relations = defineRelations(schema, (r) => ({
 	},
 	ruleDetails: {
 		rulesetInfos: r.many.rulesetInfo(),
+	},
+	telegramAdminActions: {
+		user: r.one.users({
+			from: r.telegramAdminActions.userId,
+			to: r.users.id
+		}),
+	},
+	telegramAdminLinkTokens: {
+		user: r.one.users({
+			from: r.telegramAdminLinkTokens.userId,
+			to: r.users.id
+		}),
+	},
+	telegramAdminLinks: {
+		user: r.one.users({
+			from: r.telegramAdminLinks.userId,
+			to: r.users.id
+		}),
+	},
+	telegramOutbox: {
+		user: r.one.users({
+			from: r.telegramOutbox.userId,
+			to: r.users.id
+		}),
 	},
 	userRoles: {
 		userGrantedBy: r.one.users({
@@ -201,12 +270,20 @@ export const relations = defineRelations(schema, (r) => ({
 			alias: "userRoles_userId_users_id"
 		}),
 	},
-	users: {
-		userRolesGrantedBy: r.many.userRoles({
-			alias: "userRoles_grantedBy_users_id"
+	venueOrganisers: {
+		userGrantedBy: r.one.users({
+			from: r.venueOrganisers.grantedBy,
+			to: r.users.id,
+			alias: "venueOrganisers_grantedBy_users_id"
 		}),
-		userRolesUserId: r.many.userRoles({
-			alias: "userRoles_userId_users_id"
+		userUserId: r.one.users({
+			from: r.venueOrganisers.userId,
+			to: r.users.id,
+			alias: "venueOrganisers_userId_users_id"
+		}),
+		venue: r.one.venue({
+			from: r.venueOrganisers.venueId,
+			to: r.venue.venueId
 		}),
 	},
 }))

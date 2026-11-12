@@ -170,10 +170,10 @@ INSERT INTO public.game_result (
   submitted_row
 )
 VALUES
-  (9001, 0, 9001, 35000, 1, 0, false),
-  (9001, 1, 9002, 28000, 2, 0, false),
-  (9001, 2, 9003, 22000, 3, 0, false),
-  (9001, 3, 9004, 15000, 4, 0, false);
+  (9001, 1, 9001, 35000, 1, 0, false),
+  (9001, 2, 9002, 28000, 2, 0, false),
+  (9001, 3, 9003, 22000, 3, 0, false),
+  (9001, 4, 9004, 15000, 4, 0, false);
 
 INSERT INTO public.hand_info (
   hand_id,
@@ -182,7 +182,7 @@ INSERT INTO public.hand_info (
   wind,
   round_num,
   honba,
-  riichi_deposits,
+  riichi_pot_start,
   hand_outcome,
   completed,
   submitted_row
