@@ -13,6 +13,12 @@ vi.mock('#services/game.service.js', () => ({
     addGamePlayer: vi.fn(),
     createFirstHand: vi.fn(),
     updateGame: vi.fn(),
+    updateRuleset: vi.fn(),
+    applyNamedRuleset: vi.fn(),
+    setPlayerPenalty: vi.fn(),
+    setSeatFinalScore: vi.fn(),
+    recomputeFinalPositions: vi.fn(),
+    completeGame: vi.fn(),
     getPlayers: vi.fn(),
     getRuleset: vi.fn(),
     getFinalScore: vi.fn(),
@@ -108,6 +114,132 @@ describe('updateGame', () => {
       venueId: 2,
       isRecorded: true,
     });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
+
+  it('coerces finalScoreOnly to boolean', async () => {
+    mockedService.updateGame.mockResolvedValue({ gameId: 1 });
+
+    const req = {
+      params: { id: '1' },
+      body: { finalScoreOnly: 1 },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.updateGame(req, res);
+
+    expect(mockedService.updateGame).toHaveBeenCalledWith(1, {
+      finalScoreOnly: true,
+    });
+  });
+});
+
+describe('updateRuleset', () => {
+  it('returns 200 with gameId', async () => {
+    mockedService.updateRuleset.mockResolvedValue({ gameId: 1 });
+
+    const req = {
+      params: { id: '1' },
+      body: { initialValue: 300 },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.updateRuleset(req, res);
+
+    expect(mockedService.updateRuleset).toHaveBeenCalledWith(1, {
+      initialValue: 300,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
+});
+
+describe('applyRuleset', () => {
+  it('returns 200 with gameId', async () => {
+    mockedService.applyNamedRuleset.mockResolvedValue({ gameId: 1 });
+
+    const req = {
+      params: { id: '1' },
+      body: { name: 'IT Ruleset' },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.applyRuleset(req, res);
+
+    expect(mockedService.applyNamedRuleset).toHaveBeenCalledWith(
+      1,
+      'IT Ruleset',
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
+});
+
+describe('setPlayerPenalty', () => {
+  it('returns 200 with gameId and playerId', async () => {
+    mockedService.setPlayerPenalty.mockResolvedValue({ gameId: 1, playerId: 3 });
+
+    const req = {
+      params: { id: '1', playerId: '3' },
+      body: { penalty: 40 },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.setPlayerPenalty(req, res);
+
+    expect(mockedService.setPlayerPenalty).toHaveBeenCalledWith(1, 3, 40);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1, playerId: 3 });
+  });
+});
+
+describe('setSeatFinalScore', () => {
+  it('returns 200 with gameId and startingSeat', async () => {
+    mockedService.setSeatFinalScore.mockResolvedValue({
+      gameId: 1,
+      startingSeat: 2,
+    });
+
+    const req = {
+      params: { id: '1', seat: '2' },
+      body: { score: 280 },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.setSeatFinalScore(req, res);
+
+    expect(mockedService.setSeatFinalScore).toHaveBeenCalledWith(1, 2, 280);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1, startingSeat: 2 });
+  });
+});
+
+describe('recomputeFinalPositions', () => {
+  it('returns 200 with gameId', async () => {
+    mockedService.recomputeFinalPositions.mockResolvedValue({ gameId: 1 });
+
+    const req = { params: { id: '1' }, body: {} } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.recomputeFinalPositions(req, res);
+
+    expect(mockedService.recomputeFinalPositions).toHaveBeenCalledWith(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
+});
+
+describe('completeGame', () => {
+  it('returns 200 with gameId', async () => {
+    mockedService.completeGame.mockResolvedValue({ gameId: 1 });
+
+    const req = { params: { id: '1' }, body: {} } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.completeGame(req, res);
+
+    expect(mockedService.completeGame).toHaveBeenCalledWith(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
   });

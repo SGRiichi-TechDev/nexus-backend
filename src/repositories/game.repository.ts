@@ -9,6 +9,8 @@ import type {
   RulesetInfoSelect,
   VenueModeDto,
 } from '#db/types.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { computeFinalPosition } from '#repositories/position.util.js';
 import {
   gameInfo,
   gameResult,
@@ -30,6 +32,7 @@ import {
   getColumns,
   isNotNull,
   max,
+  sql,
 } from 'drizzle-orm';
 
 const logger = createLogger('game.repository');
@@ -86,6 +89,8 @@ export const gameRepository = {
       modeId?: number;
       isRecorded?: boolean;
       deleted?: boolean;
+      finalScoreOnly?: boolean;
+      rulesetId?: number;
     },
   ): Promise<void> => {
     const start = performance.now();
@@ -515,5 +520,236 @@ export const gameRepository = {
       'game.findVenueAndModeByGameId',
     );
     return result[0];
+  },
+
+  setPlayerPenalty: async (
+    gameId: number,
+    playerId: number,
+    penalty: number,
+  ): Promise<boolean> => {
+    const start = performance.now();
+    const updated = await db
+      .update(gameResult)
+      .set({ totalPenaltyPoints: String(penalty) })
+      .where(
+        and(eq(gameResult.gameId, gameId), eq(gameResult.playerId, playerId)),
+      )
+      .returning({ playerId: gameResult.playerId });
+    logger.debug(
+      {
+        query: 'setPlayerPenalty',
+        gameId,
+        playerId,
+        penalty,
+        rowCount: updated.length,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.setPlayerPenalty',
+    );
+    return updated.length > 0;
+  },
+
+  setSeatFinalScore: async (
+    gameId: number,
+    seat: number,
+    score: number,
+  ): Promise<boolean> => {
+    const start = performance.now();
+    const updated = await db
+      .update(gameResult)
+      .set({ finalScore: score })
+      .where(
+        and(
+          eq(gameResult.gameId, gameId),
+          eq(gameResult.startingSeat, seat),
+        ),
+      )
+      .returning({ startingSeat: gameResult.startingSeat });
+    logger.debug(
+      {
+        query: 'setSeatFinalScore',
+        gameId,
+        seat,
+        score,
+        rowCount: updated.length,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.setSeatFinalScore',
+    );
+    return updated.length > 0;
+  },
+
+  recomputeFinalPositions: async (gameId: number): Promise<number> => {
+    const start = performance.now();
+    const rowsUpdated = await db.transaction(async (tx) => {
+      const rows = await tx
+        .select({
+          startingSeat: gameResult.startingSeat,
+          finalScore: gameResult.finalScore,
+        })
+        .from(gameResult)
+        .where(eq(gameResult.gameId, gameId))
+        .orderBy(asc(gameResult.playerId));
+      if (rows.length === 0) {
+        return 0;
+      }
+      const scores = rows.map((row) => row.finalScore);
+      let updated = 0;
+      for (const row of rows) {
+        const position = computeFinalPosition(row.finalScore, scores);
+        await tx
+          .update(gameResult)
+          .set({ finalPosition: position })
+          .where(
+            and(
+              eq(gameResult.gameId, gameId),
+              eq(gameResult.startingSeat, row.startingSeat),
+            ),
+          );
+        updated += 1;
+      }
+      return updated;
+    });
+    logger.debug(
+      {
+        query: 'recomputeFinalPositions',
+        gameId,
+        rowsUpdated,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.recomputeFinalPositions',
+    );
+    return rowsUpdated;
+  },
+
+  completeGame: async (
+    gameId: number,
+  ): Promise<'noop' | 'completed'> => {
+    const start = performance.now();
+    const outcome = await db.transaction(async (tx) => {
+      const locked = await tx
+        .select({
+          completed: gameInfo.completed,
+          finalScoreOnly: gameInfo.finalScoreOnly,
+        })
+        .from(gameInfo)
+        .where(eq(gameInfo.gameId, gameId))
+        .for('update')
+        .limit(1);
+
+      const game = locked[0];
+      if (!game) {
+        throw new NotFoundError('Game not found', 'json');
+      }
+      if (game.completed) {
+        return 'noop' as const;
+      }
+
+      if (game.finalScoreOnly) {
+        const updated = await tx
+          .update(gameInfo)
+          .set({
+            completed: true,
+            endedAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .where(
+            and(eq(gameInfo.gameId, gameId), eq(gameInfo.completed, false)),
+          )
+          .returning({ gameId: gameInfo.gameId });
+        return updated.length > 0 ? ('completed' as const) : ('noop' as const);
+      }
+
+      const lastHand = await tx
+        .select({ handId: handInfo.handId })
+        .from(handInfo)
+        .where(
+          and(eq(handInfo.completed, true), eq(handInfo.gameId, gameId)),
+        )
+        .orderBy(desc(handInfo.handId))
+        .limit(1);
+
+      if (!lastHand[0]) {
+        throw new BadRequestError('Game has no completed hands', 'json');
+      }
+      const handId = lastHand[0].handId;
+
+      const seats = await tx
+        .select({
+          startingSeat: gameResult.startingSeat,
+          playerId: gameResult.playerId,
+        })
+        .from(gameResult)
+        .where(eq(gameResult.gameId, gameId))
+        .orderBy(asc(gameResult.playerId));
+
+      const handRows = await tx
+        .select({
+          playerId: handPlayerResult.playerId,
+          endScore: handPlayerResult.endScore,
+          position: handPlayerResult.position,
+        })
+        .from(handPlayerResult)
+        .where(eq(handPlayerResult.handId, handId));
+
+      const handByPlayer = new Map(
+        handRows.map((row) => [row.playerId, row]),
+      );
+
+      for (const seat of seats) {
+        const playerId = seat.playerId;
+        if (playerId === null) {
+          throw new BadRequestError(
+            'Last completed hand is incomplete',
+            'json',
+          );
+        }
+        const handRow = handByPlayer.get(playerId);
+        if (
+          handRow === undefined ||
+          handRow.endScore === null ||
+          handRow.position === null
+        ) {
+          throw new BadRequestError(
+            'Last completed hand is incomplete',
+            'json',
+          );
+        }
+        await tx
+          .update(gameResult)
+          .set({
+            finalScore: handRow.endScore,
+            finalPosition: Number(handRow.position),
+          })
+          .where(
+            and(
+              eq(gameResult.gameId, gameId),
+              eq(gameResult.startingSeat, seat.startingSeat),
+            ),
+          );
+      }
+
+      const updated = await tx
+        .update(gameInfo)
+        .set({
+          completed: true,
+          endedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(
+          and(eq(gameInfo.gameId, gameId), eq(gameInfo.completed, false)),
+        )
+        .returning({ gameId: gameInfo.gameId });
+
+      return updated.length > 0 ? ('completed' as const) : ('noop' as const);
+    });
+    logger.debug(
+      {
+        query: 'completeGame',
+        gameId,
+        outcome,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.completeGame',
+    );
+    return outcome;
   },
 };
