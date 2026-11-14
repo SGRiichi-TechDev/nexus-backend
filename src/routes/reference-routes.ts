@@ -4,5 +4,6 @@ import express, { type Router } from 'express';
 const router: Router = express.Router();
 
 router.get('/score-lookup', referenceController.getScoreLookup);
+router.get('/local-text/:key', referenceController.getLocalText);
 
 export default router;
