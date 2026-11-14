@@ -43,6 +43,9 @@ const gameController = {
     if (body.deleted !== undefined) {
       patch.deleted = Boolean(body.deleted);
     }
+    if (body.finalScoreOnly !== undefined) {
+      patch.finalScoreOnly = Boolean(body.finalScoreOnly);
+    }
     const result = await gameService.updateGame(gameId, patch);
     res.status(200).json(result);
   },
@@ -138,6 +141,55 @@ const gameController = {
     const gameId = Number(req.params.id);
     const rulesets = await gameService.getAvailableRulesets(gameId);
     res.json(rulesets);
+  },
+
+  async updateRuleset(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.updateRuleset(gameId, req.body);
+    res.status(200).json(result);
+  },
+
+  async applyRuleset(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.applyNamedRuleset(
+      gameId,
+      req.body?.name,
+    );
+    res.status(200).json(result);
+  },
+
+  async setPlayerPenalty(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const playerId = Number(req.params.playerId);
+    const result = await gameService.setPlayerPenalty(
+      gameId,
+      playerId,
+      req.body?.penalty,
+    );
+    res.status(200).json(result);
+  },
+
+  async setSeatFinalScore(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const seat = Number(req.params.seat);
+    const result = await gameService.setSeatFinalScore(
+      gameId,
+      seat,
+      req.body?.score,
+    );
+    res.status(200).json(result);
+  },
+
+  async recomputeFinalPositions(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.recomputeFinalPositions(gameId);
+    res.status(200).json(result);
+  },
+
+  async completeGame(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.completeGame(gameId);
+    res.status(200).json(result);
   },
 };
 

@@ -31,6 +31,10 @@ vi.mock('#repositories/game.repository.js', () => ({
     findTelegramIdsByGameId: vi.fn(),
     findVenueAndModeByGameId: vi.fn(),
     findVenueIdByGameId: vi.fn(),
+    setPlayerPenalty: vi.fn(),
+    setSeatFinalScore: vi.fn(),
+    recomputeFinalPositions: vi.fn(),
+    completeGame: vi.fn(),
   },
 }));
 
@@ -51,6 +55,8 @@ vi.mock('#repositories/mode.repository.js', () => ({
 vi.mock('#repositories/ruleset.repository.js', () => ({
   rulesetRepository: {
     findAvailableNames: vi.fn(),
+    findAvailableIdByName: vi.fn(),
+    updateCustomRulesetForGame: vi.fn(),
   },
 }));
 
@@ -236,6 +242,154 @@ describe('gameService.updateGame', () => {
       deleted: true,
     });
   });
+
+  it('accepts finalScoreOnly and forwards to repository', async () => {
+    await expect(
+      gameService.updateGame(1, { finalScoreOnly: true }),
+    ).resolves.toEqual({ gameId: 1 });
+    expect(mockedRepo.updateGameFields).toHaveBeenCalledWith(1, {
+      finalScoreOnly: true,
+    });
+  });
+});
+
+describe('gameService.updateRuleset', () => {
+  it('throws when patch is empty', async () => {
+    await expect(gameService.updateRuleset(1, {})).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
+    expect(mockedRepo.existsById).not.toHaveBeenCalled();
+  });
+
+  it('throws for invalid aka', async () => {
+    await expect(
+      gameService.updateRuleset(1, { aka: 'invalid' }),
+    ).rejects.toMatchObject({
+      message: 'aka must be one of Aka-Ari, Aka-Nashi',
+    });
+  });
+
+  it('throws for invalid chomboOption', async () => {
+    await expect(
+      gameService.updateRuleset(1, { chomboOption: 'nope' }),
+    ).rejects.toMatchObject({
+      message: 'chomboOption must be one of Flat deduction, Payment to all',
+    });
+  });
+
+  it('throws for negative initialValue', async () => {
+    await expect(
+      gameService.updateRuleset(1, { initialValue: -1 }),
+    ).rejects.toMatchObject({
+      message: 'initialValue must be a non-negative integer',
+    });
+  });
+
+  it('throws for non-integer chomboValue', async () => {
+    await expect(
+      gameService.updateRuleset(1, { chomboValue: 1.5 }),
+    ).rejects.toMatchObject({
+      message: 'chomboValue must be a non-negative integer',
+    });
+  });
+
+  it('throws when initialValue exceeds INT4_MAX', async () => {
+    await expect(
+      gameService.updateRuleset(1, { initialValue: 2147483648 }),
+    ).rejects.toMatchObject({
+      message: 'initialValue must be a non-negative integer',
+    });
+  });
+
+  it('throws when kiriageMangan is not a boolean', async () => {
+    await expect(
+      gameService.updateRuleset(1, { kiriageMangan: 'yes' }),
+    ).rejects.toMatchObject({
+      message: 'kiriageMangan must be a boolean',
+    });
+  });
+
+  it('throws when multipleRon is not a boolean', async () => {
+    await expect(
+      gameService.updateRuleset(1, { multipleRon: 0 }),
+    ).rejects.toMatchObject({
+      message: 'multipleRon must be a boolean',
+    });
+  });
+
+  it('throws when game missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(
+      gameService.updateRuleset(1, { initialValue: 300 }),
+    ).rejects.toMatchObject({ message: 'Game not found' });
+    expect(mockedRulesetRepo.updateCustomRulesetForGame).not.toHaveBeenCalled();
+  });
+
+  it('forwards validated patch to repository', async () => {
+    await expect(
+      gameService.updateRuleset(1, {
+        initialValue: 300,
+        aka: 'Aka-Nashi',
+        multipleRon: true,
+      }),
+    ).resolves.toEqual({ gameId: 1 });
+    expect(mockedRulesetRepo.updateCustomRulesetForGame).toHaveBeenCalledWith(
+      1,
+      {
+        initialValue: 300,
+        aka: 'Aka-Nashi',
+        multipleRon: true,
+      },
+    );
+  });
+});
+
+describe('gameService.applyNamedRuleset', () => {
+  it('throws for blank name', async () => {
+    await expect(gameService.applyNamedRuleset(1, '  ')).rejects.toMatchObject({
+      message: 'Ruleset name is required',
+    });
+    expect(mockedRepo.existsById).not.toHaveBeenCalled();
+  });
+
+  it('throws for Custom name', async () => {
+    await expect(gameService.applyNamedRuleset(1, 'Custom')).rejects.toMatchObject(
+      { message: 'Ruleset name cannot be Custom' },
+    );
+  });
+
+  it('throws when game missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.applyNamedRuleset(1, 'IT Ruleset')).rejects.toMatchObject(
+      { message: 'Game not found' },
+    );
+    expect(mockedRulesetRepo.findAvailableIdByName).not.toHaveBeenCalled();
+  });
+
+  it('throws when ruleset name is unknown', async () => {
+    mockedRulesetRepo.findAvailableIdByName.mockResolvedValue(undefined);
+
+    await expect(gameService.applyNamedRuleset(1, 'Missing')).rejects.toMatchObject(
+      { message: 'Ruleset not found' },
+    );
+    expect(mockedRepo.updateGameFields).not.toHaveBeenCalled();
+  });
+
+  it('links game to named ruleset id', async () => {
+    mockedRulesetRepo.findAvailableIdByName.mockResolvedValue(9001);
+
+    await expect(gameService.applyNamedRuleset(1, 'IT Ruleset')).resolves.toEqual(
+      { gameId: 1 },
+    );
+    expect(mockedRulesetRepo.findAvailableIdByName).toHaveBeenCalledWith(
+      'IT Ruleset',
+    );
+    expect(mockedRepo.updateGameFields).toHaveBeenCalledWith(1, {
+      rulesetId: 9001,
+    });
+  });
 });
 
 describe('gameService.getPlayers', () => {
@@ -356,6 +510,146 @@ describe('gameService.getAvailableRulesets', () => {
       names: ['Club', 'Tournament'],
     });
     expect(mockedRulesetRepo.findAvailableNames).toHaveBeenCalled();
+  });
+});
+
+describe('gameService.setPlayerPenalty', () => {
+  it('rejects non-integer penalty', async () => {
+    await expect(
+      gameService.setPlayerPenalty(1, 2, 1.5),
+    ).rejects.toMatchObject({
+      message: 'penalty must be a non-negative integer',
+    });
+  });
+
+  it('rejects negative penalty', async () => {
+    await expect(gameService.setPlayerPenalty(1, 2, -1)).rejects.toMatchObject({
+      message: 'penalty must be a non-negative integer',
+    });
+  });
+
+  it('throws when game missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.setPlayerPenalty(1, 2, 10)).rejects.toMatchObject({
+      message: 'Game not found',
+    });
+    expect(mockedRepo.setPlayerPenalty).not.toHaveBeenCalled();
+  });
+
+  it('throws when player not seated', async () => {
+    mockedRepo.setPlayerPenalty.mockResolvedValue(false);
+
+    await expect(gameService.setPlayerPenalty(1, 2, 40)).rejects.toMatchObject({
+      message: 'Player not seated in game',
+    });
+  });
+
+  it('forwards valid penalty', async () => {
+    mockedRepo.setPlayerPenalty.mockResolvedValue(true);
+
+    await expect(gameService.setPlayerPenalty(1, 2, 40)).resolves.toEqual({
+      gameId: 1,
+      playerId: 2,
+    });
+    expect(mockedRepo.setPlayerPenalty).toHaveBeenCalledWith(1, 2, 40);
+  });
+});
+
+describe('gameService.setSeatFinalScore', () => {
+  it('rejects invalid seat', async () => {
+    await expect(
+      gameService.setSeatFinalScore(1, 0, 250),
+    ).rejects.toMatchObject({
+      message: 'Starting seat must be an integer between 1 and 4',
+    });
+    await expect(
+      gameService.setSeatFinalScore(1, 5, 250),
+    ).rejects.toMatchObject({
+      message: 'Starting seat must be an integer between 1 and 4',
+    });
+    await expect(
+      gameService.setSeatFinalScore(1, 1.5, 250),
+    ).rejects.toMatchObject({
+      message: 'Starting seat must be an integer between 1 and 4',
+    });
+  });
+
+  it('rejects non-integer score', async () => {
+    await expect(
+      gameService.setSeatFinalScore(1, 1, 1.2),
+    ).rejects.toMatchObject({ message: 'score must be an integer' });
+  });
+
+  it('throws when seat not found', async () => {
+    mockedRepo.setSeatFinalScore.mockResolvedValue(false);
+
+    await expect(
+      gameService.setSeatFinalScore(1, 2, 250),
+    ).rejects.toMatchObject({ message: 'Seat not found' });
+  });
+
+  it('forwards valid score including negatives', async () => {
+    mockedRepo.setSeatFinalScore.mockResolvedValue(true);
+
+    await expect(gameService.setSeatFinalScore(1, 3, -50)).resolves.toEqual({
+      gameId: 1,
+      startingSeat: 3,
+    });
+    expect(mockedRepo.setSeatFinalScore).toHaveBeenCalledWith(1, 3, -50);
+  });
+});
+
+describe('gameService.recomputeFinalPositions', () => {
+  it('throws when game has no seated players', async () => {
+    mockedRepo.recomputeFinalPositions.mockResolvedValue(0);
+
+    await expect(gameService.recomputeFinalPositions(1)).rejects.toMatchObject({
+      message: 'Game has no seated players',
+    });
+  });
+
+  it('returns gameId when rows updated', async () => {
+    mockedRepo.recomputeFinalPositions.mockResolvedValue(4);
+
+    await expect(gameService.recomputeFinalPositions(1)).resolves.toEqual({
+      gameId: 1,
+    });
+  });
+});
+
+describe('gameService.completeGame', () => {
+  it('throws when game missing', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.completeGame(1)).rejects.toMatchObject({
+      message: 'Game not found',
+    });
+    expect(mockedRepo.completeGame).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when repository reports already completed', async () => {
+    mockedRepo.completeGame.mockResolvedValue('noop');
+
+    await expect(gameService.completeGame(1)).resolves.toEqual({ gameId: 1 });
+    expect(mockedRepo.completeGame).toHaveBeenCalledWith(1);
+  });
+
+  it('completes when repository marks game completed', async () => {
+    mockedRepo.completeGame.mockResolvedValue('completed');
+
+    await expect(gameService.completeGame(1)).resolves.toEqual({ gameId: 1 });
+    expect(mockedRepo.completeGame).toHaveBeenCalledWith(1);
+  });
+
+  it('propagates no completed hands from repository', async () => {
+    mockedRepo.completeGame.mockRejectedValue(
+      new BadRequestError('Game has no completed hands', 'json'),
+    );
+
+    await expect(gameService.completeGame(1)).rejects.toMatchObject({
+      message: 'Game has no completed hands',
+    });
   });
 });
 

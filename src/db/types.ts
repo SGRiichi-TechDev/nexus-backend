@@ -1,4 +1,6 @@
 import {
+  akaEnum,
+  chomboOptionEnum,
   gameInfo,
   gameResult,
   handInfo,
@@ -201,10 +203,44 @@ export type UpdateGamePatch = {
   modeId?: number;
   isRecorded?: boolean;
   deleted?: boolean;
+  finalScoreOnly?: boolean;
 };
 
 export type UpdateGameResponseDto = {
   gameId: number;
+};
+
+export type UpdateRulesetPatch = {
+  initialValue?: number;
+  aka?: (typeof akaEnum.enumValues)[number];
+  chomboValue?: number;
+  chomboOption?: (typeof chomboOptionEnum.enumValues)[number];
+  kiriageMangan?: boolean;
+  multipleRon?: boolean;
+};
+
+export type ApplyRulesetDto = {
+  name: string;
+};
+
+export type RulesetMutationResponseDto = UpdateGameResponseDto;
+
+export type SetPenaltyDto = {
+  penalty: number;
+};
+
+export type SetPlayerPenaltyResponseDto = {
+  gameId: number;
+  playerId: number;
+};
+
+export type SetSeatFinalScoreDto = {
+  score: number;
+};
+
+export type SetSeatFinalScoreResponseDto = {
+  gameId: number;
+  startingSeat: number;
 };
 
 export type CreatePlayerDto = {
