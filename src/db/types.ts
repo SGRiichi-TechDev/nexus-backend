@@ -6,6 +6,7 @@ import {
   handInfo,
   handWin,
   individualOutcomeEnum,
+  localText,
   playerInfo,
   rulesetInfo,
   scoreLookup,
@@ -164,6 +165,11 @@ export type MultipleRonStatusDto = {
 };
 
 export type ScoreLookupRow = InferSelectModel<typeof scoreLookup>;
+
+export type LocalTextDto = Pick<
+  InferSelectModel<typeof localText>,
+  'key' | 'value'
+>;
 
 export type HandResultForScoreCalc = {
   handPlayerResultId: number;

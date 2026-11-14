@@ -58112,7 +58112,9 @@ INSERT INTO "public"."yaku_lookup" ("yaku_id", "yaku_name", "han_value", "open_h
 --
 
 INSERT INTO "public"."local_text" ("key", "value") VALUES
-	('help', 'Default help text.');
+	('help', 'Default help text.'),
+	('telegram-id-not-registered', 'Default telegram-id-not-registered text.'),
+	('participation-confirmation', 'Default participation-confirmation text.');
 
 
 --
