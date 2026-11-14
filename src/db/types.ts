@@ -210,6 +210,17 @@ export type UpdateGameResponseDto = {
   gameId: number;
 };
 
+export type DeleteLatestHandResponseDto = {
+  gameId: number;
+  handId: number | null;
+  deleted: boolean;
+};
+
+export type ClearSeatsResponseDto = {
+  gameId: number;
+  deleted: number;
+};
+
 export type UpdateRulesetPatch = {
   initialValue?: number;
   aka?: (typeof akaEnum.enumValues)[number];

@@ -19,6 +19,8 @@ vi.mock('#services/game.service.js', () => ({
     setSeatFinalScore: vi.fn(),
     recomputeFinalPositions: vi.fn(),
     completeGame: vi.fn(),
+    deleteLatestHand: vi.fn(),
+    clearSeats: vi.fn(),
     getPlayers: vi.fn(),
     getRuleset: vi.fn(),
     getFinalScore: vi.fn(),
@@ -242,6 +244,57 @@ describe('completeGame', () => {
     expect(mockedService.completeGame).toHaveBeenCalledWith(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ gameId: 1 });
+  });
+});
+
+describe('deleteLatestHand', () => {
+  it('returns 200 with delete payload', async () => {
+    mockedService.deleteLatestHand.mockResolvedValue({
+      gameId: 7,
+      handId: 12,
+      deleted: true,
+    });
+
+    const req = { params: { id: '7' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.deleteLatestHand(req, res);
+
+    expect(mockedService.deleteLatestHand).toHaveBeenCalledWith(7);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      gameId: 7,
+      handId: 12,
+      deleted: true,
+    });
+  });
+
+  it('propagates service rejection', async () => {
+    mockedService.deleteLatestHand.mockRejectedValue(
+      new NotFoundError('Game not found', 'json'),
+    );
+
+    const req = { params: { id: '7' } } as unknown as Request;
+    const res = mockResponse();
+
+    await expect(
+      gameController.deleteLatestHand(req, res),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('clearSeats', () => {
+  it('returns 200 with clear payload', async () => {
+    mockedService.clearSeats.mockResolvedValue({ gameId: 7, deleted: 4 });
+
+    const req = { params: { id: '7' } } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.clearSeats(req, res);
+
+    expect(mockedService.clearSeats).toHaveBeenCalledWith(7);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ gameId: 7, deleted: 4 });
   });
 });
 
