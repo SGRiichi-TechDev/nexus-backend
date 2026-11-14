@@ -43,6 +43,7 @@ describe('createPlayer', () => {
       status: 'active' as Status,
       ctryCd: '',
       ctyCd: '',
+      statusReason: null,
     };
     mockedService.create.mockResolvedValue(created);
 
@@ -67,6 +68,7 @@ describe('getAllPlayers', () => {
         status: 'active' as Status,
         ctryCd: '',
         ctyCd: '',
+        statusReason: null,
       },
     ];
     mockedService.list.mockResolvedValue(fakeRows);
@@ -112,6 +114,7 @@ describe('getPlayerById', () => {
       status: 'active' as Status,
       ctryCd: '',
       ctyCd: '',
+      statusReason: null,
     };
     mockedService.getById.mockResolvedValue(fakePlayer);
 

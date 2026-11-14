@@ -258,4 +258,175 @@ describe('write flow: hand mid-game mutations', () => {
     );
     expect(winsForPlayer).toHaveLength(1);
   });
+
+  it('carries riichi pot to next hand after draw without win', async () => {
+    const ctx = await bootstrapScratchHand();
+    const { handId, casualPlayerId, handPlayerBySeat } = ctx;
+    const p2 = handPlayerBySeat.get(2)?.playerId as number;
+    const p3 = handPlayerBySeat.get(3)?.playerId as number;
+    const p4 = handPlayerBySeat.get(4)?.playerId as number;
+
+    await client
+      .put(`/api/v1/hands/${handId}/riichi`)
+      .send({ playerIds: [casualPlayerId] });
+    await client
+      .post(`/api/v1/hands/${handId}/riichi/apply`)
+      .send({ playerIds: [casualPlayerId] });
+
+    const beforeNext = await client.get(`/api/v1/hands/${handId}`);
+    expect(beforeNext.body.riichiDeposits).toBe(1);
+
+    await client.put(`/api/v1/hands/${handId}/draw-payments`).send({
+      payments: [
+        { playerId: casualPlayerId, outcome: 'Draw', scoreChange: 0 },
+        { playerId: p2, outcome: 'Draw', scoreChange: 0 },
+        { playerId: p3, outcome: 'Draw', scoreChange: 0 },
+        { playerId: p4, outcome: 'Draw', scoreChange: 0 },
+      ],
+    });
+
+    const nextHandRes = await client
+      .post(`/api/v1/hands/${handId}/next`)
+      .send({ wind: 'E', roundNum: 1, honba: 1 });
+    expect(nextHandRes.status).toBe(201);
+    const nextHandId = nextHandRes.body.handId as number;
+
+    const nextDetails = await client.get(`/api/v1/hands/${nextHandId}`);
+    expect(nextDetails.body.riichiDeposits).toBe(1);
+
+    const nextScoreInput = await client.get(
+      `/api/v1/hands/${nextHandId}/score-input`,
+    );
+    expect(nextScoreInput.body.riichiDeposits).toBe(1);
+
+    await client
+      .put(`/api/v1/hands/${nextHandId}/riichi`)
+      .send({ playerIds: [p2] });
+    await client
+      .post(`/api/v1/hands/${nextHandId}/riichi/apply`)
+      .send({ playerIds: [p2] });
+
+    const afterSecondRiichi = await client.get(`/api/v1/hands/${nextHandId}`);
+    expect(afterSecondRiichi.body.riichiDeposits).toBe(2);
+  });
+
+  it('replaceRiichi swaps depositing players while keeping pot stick count', async () => {
+    const ctx = await bootstrapScratchHand();
+    const { handId, casualPlayerId, handPlayerBySeat } = ctx;
+    const p2 = handPlayerBySeat.get(2)?.playerId as number;
+
+    await client
+      .put(`/api/v1/hands/${handId}/riichi`)
+      .send({ playerIds: [casualPlayerId] });
+    await client
+      .post(`/api/v1/hands/${handId}/riichi/apply`)
+      .send({ playerIds: [casualPlayerId] });
+
+    const beforeReplace = await client.get(`/api/v1/hands/${handId}`);
+    expect(beforeReplace.body.riichiDeposits).toBe(1);
+
+    const replaceRes = await client
+      .put(`/api/v1/hands/${handId}/riichi`)
+      .send({ playerIds: [p2] });
+    expect(replaceRes.status).toBe(200);
+
+    const afterReplace = await client.get(`/api/v1/hands/${handId}`);
+    expect(afterReplace.body.riichiDeposits).toBe(1);
+
+    const inRiichi = await client.get(`/api/v1/hands/${handId}/players-in-riichi`);
+    expect(inRiichi.body.map((p: { playerId: number }) => p.playerId)).toEqual([
+      p2,
+    ]);
+  });
+
+  it('resetRiichi clears live deposits back to riichiPotStart', async () => {
+    const ctx = await bootstrapScratchHand();
+    const { handId, casualPlayerId } = ctx;
+
+    await client
+      .put(`/api/v1/hands/${handId}/riichi`)
+      .send({ playerIds: [casualPlayerId] });
+    await client
+      .post(`/api/v1/hands/${handId}/riichi/apply`)
+      .send({ playerIds: [casualPlayerId] });
+
+    const beforeReset = await client.get(`/api/v1/hands/${handId}`);
+    expect(beforeReset.body.riichiDeposits).toBe(1);
+
+    const resetRes = await client.post(`/api/v1/hands/${handId}/riichi/reset`);
+    expect(resetRes.status).toBe(200);
+
+    const afterReset = await client.get(`/api/v1/hands/${handId}`);
+    expect(afterReset.body.riichiDeposits).toBe(0);
+
+    const scoreInput = await client.get(`/api/v1/hands/${handId}/score-input`);
+    expect(scoreInput.body.riichiDeposits).toBe(0);
+  });
+
+  it('winner score-changes collects pot and next hand starts with zero riichi', async () => {
+    const ctx = await bootstrapScratchHand();
+    const { handId, casualPlayerId, handPlayerBySeat } = ctx;
+    const loserPlayerId = handPlayerBySeat.get(2)?.playerId as number;
+
+    await client
+      .put(`/api/v1/hands/${handId}/riichi`)
+      .send({ playerIds: [casualPlayerId] });
+    await client
+      .post(`/api/v1/hands/${handId}/riichi/apply`)
+      .send({ playerIds: [casualPlayerId] });
+
+    await client.patch(`/api/v1/hands/${handId}/outcome`).send({ outcome: 'Ron' });
+    await client
+      .patch(`/api/v1/hands/${handId}/players/${casualPlayerId}`)
+      .send({ outcome: 'Ron' });
+    await client.post(
+      `/api/v1/hands/${handId}/players/${loserPlayerId}/deal-in`,
+    );
+    await client.patch(`/api/v1/hands/${handId}/han`).send({ han: 1 });
+    await client.patch(`/api/v1/hands/${handId}/fu`).send({ fu: 30 });
+
+    const scoreInput = await client.get(`/api/v1/hands/${handId}/score-input`);
+    const winnerHpr = scoreInput.body.handResults.find(
+      (r: { playerId: number }) => r.playerId === casualPlayerId,
+    );
+    const loserHpr = scoreInput.body.handResults.find(
+      (r: { playerId: number }) => r.playerId === loserPlayerId,
+    );
+
+    const scoreRes = await client
+      .post(`/api/v1/hands/${handId}/score-changes`)
+      .send({
+        updates: [
+          {
+            handPlayerResultId: winnerHpr.handPlayerResultId,
+            scoreChange: 1000,
+            winner: true,
+          },
+          {
+            handPlayerResultId: loserHpr.handPlayerResultId,
+            scoreChange: -1000,
+            winner: false,
+          },
+        ],
+        winnerHandValue: 1010,
+      });
+    expect(scoreRes.status).toBe(200);
+
+    const afterScore = await client.get(`/api/v1/hands/${handId}`);
+    expect(afterScore.body.riichiDeposits).toBe(0);
+
+    const nextHandRes = await client
+      .post(`/api/v1/hands/${handId}/next`)
+      .send({ wind: 'E', roundNum: 1, honba: 0 });
+    expect(nextHandRes.status).toBe(201);
+    const nextHandId = nextHandRes.body.handId as number;
+
+    const nextDetails = await client.get(`/api/v1/hands/${nextHandId}`);
+    expect(nextDetails.body.riichiDeposits).toBe(0);
+
+    const nextScoreInput = await client.get(
+      `/api/v1/hands/${nextHandId}/score-input`,
+    );
+    expect(nextScoreInput.body.riichiDeposits).toBe(0);
+  });
 });

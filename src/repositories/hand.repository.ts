@@ -52,27 +52,29 @@ const mapWinType = (
   return 'Ron';
 };
 
-const findCarriedRiichiDeposits = async (
+// TODO(leftover_riichi_rule): end-of-game leftover pot (lost | to_first) is not handled by mid-hand mutations.
+const computeHandPot = async (
   tx: DbOrTx,
   handId: number,
 ): Promise<number> => {
-  const current = await tx
-    .select({ gameId: handInfo.gameId, handNum: handInfo.handNum })
-    .from(handInfo)
-    .where(eq(handInfo.handId, handId))
-    .limit(1);
-  const row = current[0];
-  if (!row || row.handNum <= 1) {
-    return 0;
-  }
-  const prev = await tx
-    .select({ riichiDeposits: handInfo.riichiDeposits })
-    .from(handInfo)
-    .where(
-      and(eq(handInfo.gameId, row.gameId), eq(handInfo.handNum, row.handNum - 1)),
-    )
-    .limit(1);
-  return prev[0]?.riichiDeposits ?? 0;
+  const [handRow, aggRow] = await Promise.all([
+    tx
+      .select({ riichiPotStart: handInfo.riichiPotStart })
+      .from(handInfo)
+      .where(eq(handInfo.handId, handId))
+      .limit(1),
+    tx
+      .select({
+        deposited: sql<number>`coalesce(sum(${handPlayerResult.riichiDeposited}), 0)`,
+        collected: sql<number>`coalesce(sum(${handPlayerResult.riichiCollected}), 0)`,
+      })
+      .from(handPlayerResult)
+      .where(eq(handPlayerResult.handId, handId)),
+  ]);
+  const start = handRow[0]?.riichiPotStart ?? 0;
+  const deposited = Number(aggRow[0]?.deposited ?? 0);
+  const collected = Number(aggRow[0]?.collected ?? 0);
+  return start + deposited - collected;
 };
 
 const allocateNextHandId = async (tx: DbOrTx): Promise<number> => {
@@ -211,6 +213,7 @@ export const handRepository = {
 
     const primaryWin = wins[0];
     const hand = handRow[0];
+    const riichiDeposits = await computeHandPot(db, handId);
 
     logger.debug(
       {
@@ -228,7 +231,7 @@ export const handRepository = {
       roundNum: hand.roundNum,
       honba: hand.honba,
       handOutcome: hand.handOutcome,
-      riichiDeposits: hand.riichiDeposits,
+      riichiDeposits,
       han: primaryWin?.han ?? null,
       fu: primaryWin?.fu ?? null,
       handValue: primaryWin?.handValue ?? null,
@@ -277,7 +280,6 @@ export const handRepository = {
         handId: handInfo.handId,
         gameId: handInfo.gameId,
         honba: handInfo.honba,
-        riichiDeposits: handInfo.riichiDeposits,
         han: handWin.han,
         fu: handWin.fu,
         kiriageMangan: rulesetInfo.kiriageMangan,
@@ -325,6 +327,7 @@ export const handRepository = {
 
     const hand = handRow[0];
     const isRecordingMultipleRon = (winCount[0]?.value ?? 0) > 1;
+    const riichiDeposits = await computeHandPot(db, handId);
 
     logger.debug(
       {
@@ -342,7 +345,7 @@ export const handRepository = {
       han: hand.han,
       fu: hand.fu,
       honba: hand.honba,
-      riichiDeposits: hand.riichiDeposits,
+      riichiDeposits,
       isRecordingMultipleRon,
       kiriageMangan: hand.kiriageMangan ?? false,
       handResults,
@@ -497,7 +500,7 @@ export const handRepository = {
         wind,
         roundNum,
         honba,
-        riichiDeposits: prev.riichiDeposits,
+        riichiPotStart: await computeHandPot(tx, previousHandId),
       });
 
       const seats = await tx
@@ -586,13 +589,13 @@ export const handRepository = {
     await db.transaction(async (tx) => {
       await tx
         .update(handPlayerResult)
-        .set({ riichi: false, riichiOrder: null })
+        .set({ riichi: false, riichiDeposited: 0, riichiOrder: null })
         .where(eq(handPlayerResult.handId, handId));
 
       for (const [index, playerId] of playerIds.entries()) {
         await tx
           .update(handPlayerResult)
-          .set({ riichi: true, riichiOrder: index })
+          .set({ riichi: true, riichiDeposited: 1, riichiOrder: index })
           .where(
             and(
               eq(handPlayerResult.handId, handId),
@@ -623,7 +626,7 @@ export const handRepository = {
       if (playerIds.length > 0) {
         await tx
           .update(handPlayerResult)
-          .set({ scoreChange: -10 })
+          .set({ riichi: true, riichiDeposited: 1, scoreChange: -10 })
           .where(
             and(
               eq(handPlayerResult.handId, handId),
@@ -632,7 +635,12 @@ export const handRepository = {
           );
         await tx
           .update(handPlayerResult)
-          .set({ scoreChange: 0 })
+          .set({
+            riichi: false,
+            riichiDeposited: 0,
+            riichiOrder: null,
+            scoreChange: 0,
+          })
           .where(
             and(
               eq(handPlayerResult.handId, handId),
@@ -642,15 +650,14 @@ export const handRepository = {
       } else {
         await tx
           .update(handPlayerResult)
-          .set({ scoreChange: 0 })
+          .set({
+            riichi: false,
+            riichiDeposited: 0,
+            riichiOrder: null,
+            scoreChange: 0,
+          })
           .where(eq(handPlayerResult.handId, handId));
       }
-
-      const carried = await findCarriedRiichiDeposits(tx, handId);
-      await tx
-        .update(handInfo)
-        .set({ riichiDeposits: carried + playerIds.length })
-        .where(eq(handInfo.handId, handId));
     });
     logger.debug(
       {
@@ -667,15 +674,15 @@ export const handRepository = {
   resetRiichi: async (handId: number): Promise<HandMutationResponseDto> => {
     const start = performance.now();
     await db.transaction(async (tx) => {
-      const carried = await findCarriedRiichiDeposits(tx, handId);
       await tx
         .update(handPlayerResult)
-        .set({ riichi: false, riichiOrder: null, scoreChange: 0 })
+        .set({
+          riichi: false,
+          riichiDeposited: 0,
+          riichiOrder: null,
+          scoreChange: 0,
+        })
         .where(eq(handPlayerResult.handId, handId));
-      await tx
-        .update(handInfo)
-        .set({ riichiDeposits: carried })
-        .where(eq(handInfo.handId, handId));
     });
     logger.debug(
       {
@@ -1100,9 +1107,40 @@ export const handRepository = {
 
       if (winnerHandValue !== null) {
         await tx
-          .update(handInfo)
-          .set({ riichiDeposits: 0 })
-          .where(eq(handInfo.handId, handId));
+          .update(handPlayerResult)
+          .set({ riichiCollected: 0 })
+          .where(eq(handPlayerResult.handId, handId));
+
+        // Multiple Ron is not supported by the bot flow; head-bump winner selection is out of scope.
+        const winnerUpdate = updates.find((u) => u.winner);
+        if (winnerUpdate) {
+          const [potStartRow, depositedRow] = await Promise.all([
+            tx
+              .select({ riichiPotStart: handInfo.riichiPotStart })
+              .from(handInfo)
+              .where(eq(handInfo.handId, handId))
+              .limit(1),
+            tx
+              .select({
+                deposited: sql<number>`coalesce(sum(${handPlayerResult.riichiDeposited}), 0)`,
+              })
+              .from(handPlayerResult)
+              .where(eq(handPlayerResult.handId, handId)),
+          ]);
+          const fullPot =
+            (potStartRow[0]?.riichiPotStart ?? 0) +
+            Number(depositedRow[0]?.deposited ?? 0);
+          await tx
+            .update(handPlayerResult)
+            .set({ riichiCollected: fullPot })
+            .where(
+              eq(
+                handPlayerResult.handPlayerResultId,
+                winnerUpdate.handPlayerResultId,
+              ),
+            );
+        }
+
         await tx
           .update(handWin)
           .set({ handValue: winnerHandValue })
