@@ -752,4 +752,53 @@ export const gameRepository = {
     );
     return outcome;
   },
+
+  clearSeats: async (gameId: number): Promise<number> => {
+    const start = performance.now();
+    const deleted = await db.transaction(async (tx) => {
+      const locked = await tx
+        .select({ completed: gameInfo.completed })
+        .from(gameInfo)
+        .where(eq(gameInfo.gameId, gameId))
+        .for('update')
+        .limit(1);
+
+      const game = locked[0];
+      if (!game) {
+        throw new NotFoundError('Game not found', 'json');
+      }
+      if (game.completed) {
+        throw new BadRequestError('Game is already completed', 'json');
+      }
+
+      const handCountRow = await tx
+        .select({ value: count() })
+        .from(handInfo)
+        .where(eq(handInfo.gameId, gameId));
+      const handCount = handCountRow[0]?.value ?? 0;
+      if (handCount > 0) {
+        throw new BadRequestError(
+          'Cannot clear seats after hands exist',
+          'json',
+        );
+      }
+
+      const removed = await tx
+        .delete(gameResult)
+        .where(eq(gameResult.gameId, gameId))
+        .returning({ startingSeat: gameResult.startingSeat });
+
+      return removed.length;
+    });
+    logger.debug(
+      {
+        query: 'clearSeats',
+        gameId,
+        deleted,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'game.clearSeats',
+    );
+    return deleted;
+  },
 };

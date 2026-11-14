@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('#repositories/hand.repository.js', () => ({
   handRepository: {
     insertFirstHand: vi.fn(),
+    deleteLatestForGame: vi.fn(),
   },
 }));
 
@@ -35,6 +36,7 @@ vi.mock('#repositories/game.repository.js', () => ({
     setSeatFinalScore: vi.fn(),
     recomputeFinalPositions: vi.fn(),
     completeGame: vi.fn(),
+    clearSeats: vi.fn(),
   },
 }));
 
@@ -614,6 +616,98 @@ describe('gameService.recomputeFinalPositions', () => {
 
     await expect(gameService.recomputeFinalPositions(1)).resolves.toEqual({
       gameId: 1,
+    });
+  });
+});
+
+describe('gameService.deleteLatestHand', () => {
+  it('throws NotFoundError when game does not exist', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.deleteLatestHand(1)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(mockedHandRepo.deleteLatestForGame).not.toHaveBeenCalled();
+  });
+
+  it('returns deleted true when repository removes a hand', async () => {
+    mockedHandRepo.deleteLatestForGame.mockResolvedValue({ handId: 7 });
+
+    await expect(gameService.deleteLatestHand(1)).resolves.toEqual({
+      gameId: 1,
+      handId: 7,
+      deleted: true,
+    });
+    expect(mockedHandRepo.deleteLatestForGame).toHaveBeenCalledWith(1);
+  });
+
+  it('returns deleted false when repository reports no hand', async () => {
+    mockedHandRepo.deleteLatestForGame.mockResolvedValue({ handId: null });
+
+    await expect(gameService.deleteLatestHand(1)).resolves.toEqual({
+      gameId: 1,
+      handId: null,
+      deleted: false,
+    });
+  });
+
+  it('propagates completed-game error from repository', async () => {
+    mockedHandRepo.deleteLatestForGame.mockRejectedValue(
+      new BadRequestError('Game is already completed', 'json'),
+    );
+
+    await expect(gameService.deleteLatestHand(1)).rejects.toMatchObject({
+      message: 'Game is already completed',
+    });
+  });
+});
+
+describe('gameService.clearSeats', () => {
+  it('throws NotFoundError when game does not exist', async () => {
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(gameService.clearSeats(1)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(mockedRepo.clearSeats).not.toHaveBeenCalled();
+  });
+
+  it('returns deleted count when repository removes seats', async () => {
+    mockedRepo.clearSeats.mockResolvedValue(4);
+
+    await expect(gameService.clearSeats(1)).resolves.toEqual({
+      gameId: 1,
+      deleted: 4,
+    });
+    expect(mockedRepo.clearSeats).toHaveBeenCalledWith(1);
+  });
+
+  it('returns deleted 0 when repository removes no rows', async () => {
+    mockedRepo.clearSeats.mockResolvedValue(0);
+
+    await expect(gameService.clearSeats(1)).resolves.toEqual({
+      gameId: 1,
+      deleted: 0,
+    });
+  });
+
+  it('propagates hands-exist error from repository', async () => {
+    mockedRepo.clearSeats.mockRejectedValue(
+      new BadRequestError('Cannot clear seats after hands exist', 'json'),
+    );
+
+    await expect(gameService.clearSeats(1)).rejects.toMatchObject({
+      message: 'Cannot clear seats after hands exist',
+    });
+  });
+
+  it('propagates completed-game error from repository', async () => {
+    mockedRepo.clearSeats.mockRejectedValue(
+      new BadRequestError('Game is already completed', 'json'),
+    );
+
+    await expect(gameService.clearSeats(1)).rejects.toMatchObject({
+      message: 'Game is already completed',
     });
   });
 });

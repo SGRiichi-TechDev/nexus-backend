@@ -7,6 +7,7 @@ router.post('/', gameController.createGame);
 router.patch('/:id', gameController.updateGame);
 
 router.post('/:id/players', gameController.addGamePlayer);
+router.delete('/:id/players', gameController.clearSeats);
 router.put('/:id/players/:playerId/penalty', gameController.setPlayerPenalty);
 router.post('/:id/hands', gameController.createFirstHand);
 router.get('/:id/players', gameController.getPlayersByGameId);
@@ -21,6 +22,7 @@ router.get('/:id/penalties', gameController.getPenalties);
 router.get('/:id/hands/count', gameController.getHandCount);
 router.get('/:id/hands/last-completed', gameController.getLastCompletedHand);
 router.get('/:id/hands/last-for-next', gameController.getLastHandForNext);
+router.delete('/:id/hands/latest', gameController.deleteLatestHand);
 router.get('/:id/player-telegram-ids', gameController.getPlayerTelegramIds);
 router.get('/:id/venue-mode', gameController.getVenueMode);
 router.get('/:id/modes/lookup', gameController.lookupMode);

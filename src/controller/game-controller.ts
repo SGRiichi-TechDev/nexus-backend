@@ -191,6 +191,18 @@ const gameController = {
     const result = await gameService.completeGame(gameId);
     res.status(200).json(result);
   },
+
+  async deleteLatestHand(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.deleteLatestHand(gameId);
+    res.status(200).json(result);
+  },
+
+  async clearSeats(req: Request, res: Response) {
+    const gameId = Number(req.params.id);
+    const result = await gameService.clearSeats(gameId);
+    res.status(200).json(result);
+  },
 };
 
 export default gameController;

@@ -10,13 +10,15 @@ import type {
   ScoreCalcInputDto,
   Wind,
 } from '#db/types.js';
-import { NotFoundError } from '#errors/app-error.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import {
   gameInfo,
   gameResult,
   handInfo,
   handPlayerResult,
+  handTransaction,
   handWin,
+  handYaku,
   playerInfo,
   rulesetInfo,
 } from '#drizzle/schema.js';
@@ -25,6 +27,7 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   getColumns,
   inArray,
@@ -1230,6 +1233,72 @@ export const handRepository = {
       'hand.insertHandWin',
     );
     return { handId, winnerPlayerId };
+  },
+
+  deleteLatestForGame: async (
+    gameId: number,
+  ): Promise<{ handId: number | null }> => {
+    const start = performance.now();
+    const handId = await db.transaction(async (tx) => {
+      const locked = await tx
+        .select({ completed: gameInfo.completed })
+        .from(gameInfo)
+        .where(eq(gameInfo.gameId, gameId))
+        .for('update')
+        .limit(1);
+
+      const game = locked[0];
+      if (!game) {
+        throw new NotFoundError('Game not found', 'json');
+      }
+      if (game.completed) {
+        throw new BadRequestError('Game is already completed', 'json');
+      }
+
+      const latest = await tx
+        .select({ handId: handInfo.handId })
+        .from(handInfo)
+        .where(eq(handInfo.gameId, gameId))
+        .orderBy(desc(handInfo.handId))
+        .limit(1);
+
+      const latestHandId = latest[0]?.handId;
+      if (latestHandId === undefined) {
+        return null;
+      }
+
+      await tx.delete(handYaku).where(
+        inArray(
+          handYaku.handWinId,
+          tx
+            .select({ id: handWin.handWinId })
+            .from(handWin)
+            .where(eq(handWin.handId, latestHandId)),
+        ),
+      );
+      await tx
+        .delete(handWin)
+        .where(eq(handWin.handId, latestHandId));
+      await tx
+        .delete(handTransaction)
+        .where(eq(handTransaction.handId, latestHandId));
+      await tx
+        .delete(handPlayerResult)
+        .where(eq(handPlayerResult.handId, latestHandId));
+      await tx.delete(handInfo).where(eq(handInfo.handId, latestHandId));
+
+      return latestHandId;
+    });
+    logger.debug(
+      {
+        query: 'deleteLatestForGame',
+        gameId,
+        handId,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'hand.deleteLatestForGame',
+    );
+    return { handId };
   },
 };
 

@@ -1,6 +1,8 @@
 import type {
   AvailableRulesetsDto,
+  ClearSeatsResponseDto,
   CreateGameResponseDto,
+  DeleteLatestHandResponseDto,
   FinalScoreDto,
   HandCountDto,
   HandIdDto,
@@ -428,5 +430,22 @@ export const gameService = {
       logger.debug({ gameId }, 'Completed game');
     }
     return { gameId };
+  },
+
+  deleteLatestHand: async (
+    gameId: number,
+  ): Promise<DeleteLatestHandResponseDto> => {
+    await assertGameExists(gameId);
+    const { handId } = await handRepository.deleteLatestForGame(gameId);
+    const deleted = handId !== null;
+    logger.debug({ gameId, handId, deleted }, 'Deleted latest hand');
+    return { gameId, handId, deleted };
+  },
+
+  clearSeats: async (gameId: number): Promise<ClearSeatsResponseDto> => {
+    await assertGameExists(gameId);
+    const deleted = await gameRepository.clearSeats(gameId);
+    logger.debug({ gameId, deleted }, 'Cleared game seats');
+    return { gameId, deleted };
   },
 };
