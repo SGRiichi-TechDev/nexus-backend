@@ -3,7 +3,6 @@ import type { ActiveParticipationDto, PlayerInfo } from '#db/types.js';
 import {
   gameInfo,
   gameResult,
-  handInfo,
   playerInfo,
 } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
@@ -150,7 +149,6 @@ export const playerRepository = {
     const result = await db
       .select({
         gameId: gameInfo.gameId,
-        handId: handInfo.handId,
       })
       .from(playerInfo)
       .innerJoin(gameResult, eq(playerInfo.playerId, gameResult.playerId))
@@ -162,15 +160,8 @@ export const playerRepository = {
           eq(gameInfo.completed, false),
         ),
       )
-      .innerJoin(
-        handInfo,
-        and(
-          eq(gameInfo.gameId, handInfo.gameId),
-          eq(handInfo.completed, true),
-        ),
-      )
       .where(eq(playerInfo.telegramId, telegramId))
-      .orderBy(desc(handInfo.handId))
+      .orderBy(desc(gameInfo.gameId))
       .limit(1);
     logger.debug(
       {

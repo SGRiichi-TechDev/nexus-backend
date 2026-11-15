@@ -116,7 +116,7 @@ export const playerService = {
 
   getActiveParticipation: async (
     telegramId: number,
-  ): Promise<ActiveParticipationDto> => {
+  ): Promise<ActiveParticipationDto | null> => {
     if (!telegramId) {
       throw new BadRequestError('Telegram ID is required', 'text');
     }
@@ -131,9 +131,6 @@ export const playerService = {
 
     logger.debug({ telegramId, participation }, 'Resolved active participation');
 
-    return {
-      gameId: participation?.gameId ?? null,
-      handId: participation?.handId ?? null,
-    };
+    return participation ?? null;
   },
 };

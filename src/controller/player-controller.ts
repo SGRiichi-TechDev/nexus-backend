@@ -49,6 +49,10 @@ const playerController = {
     const telegramId = Number(req.query.telegramId);
     const participation =
       await playerService.getActiveParticipation(telegramId);
+    if (participation === null) {
+      res.sendStatus(204);
+      return;
+    }
     res.json(participation);
   },
 };

@@ -56,8 +56,7 @@ export type SessionGameDto = CurrentGameDto & {
 };
 
 export type ActiveParticipationDto = {
-  gameId: number | null;
-  handId: number | null;
+  gameId: number;
 };
 
 export type HasOutcomeDto = {

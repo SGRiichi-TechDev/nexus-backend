@@ -160,15 +160,25 @@ describe('playerService.getByTelegramId', () => {
 });
 
 describe('playerService.getActiveParticipation', () => {
-  it('returns null ids when no active game', async () => {
+  it('returns null when not seated in an active game', async () => {
     mockedPlayerRepo.findByTelegramId.mockResolvedValue({
       playerId: 1,
     } as never);
     mockedPlayerRepo.findActiveParticipation.mockResolvedValue(undefined);
 
+    await expect(playerService.getActiveParticipation(12345)).resolves.toBeNull();
+  });
+
+  it('returns gameId when seated in an incomplete game', async () => {
+    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
+      playerId: 1,
+    } as never);
+    mockedPlayerRepo.findActiveParticipation.mockResolvedValue({
+      gameId: 10,
+    });
+
     await expect(playerService.getActiveParticipation(12345)).resolves.toEqual({
-      gameId: null,
-      handId: null,
+      gameId: 10,
     });
   });
 });
