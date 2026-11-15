@@ -153,8 +153,12 @@ describe('getPlayerById', () => {
 });
 
 describe('getActiveParticipation', () => {
-  it('returns 204 when player is not seated in an active game', async () => {
-    mockedService.getActiveParticipation.mockResolvedValue(null);
+  it('returns inactive role flags when not in a game', async () => {
+    mockedService.getActiveParticipation.mockResolvedValue({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
@@ -162,12 +166,19 @@ describe('getActiveParticipation', () => {
     await playerController.getActiveParticipation(req, res);
 
     expect(mockedService.getActiveParticipation).toHaveBeenCalledWith(12345);
-    expect(res.sendStatus).toHaveBeenCalledWith(204);
-    expect(res.json).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
   });
 
-  it('returns gameId when seated', async () => {
-    mockedService.getActiveParticipation.mockResolvedValue({ gameId: 42 });
+  it('returns role flags when seated or recording', async () => {
+    mockedService.getActiveParticipation.mockResolvedValue({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 42,
+    });
 
     const req = { query: { telegramId: '12345' } } as unknown as Request;
     const res = mockResponse();
@@ -175,8 +186,11 @@ describe('getActiveParticipation', () => {
     await playerController.getActiveParticipation(req, res);
 
     expect(mockedService.getActiveParticipation).toHaveBeenCalledWith(12345);
-    expect(res.json).toHaveBeenCalledWith({ gameId: 42 });
-    expect(res.sendStatus).not.toHaveBeenCalledWith(204);
+    expect(res.json).toHaveBeenCalledWith({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 42,
+    });
   });
 });
 

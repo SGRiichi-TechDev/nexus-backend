@@ -116,7 +116,7 @@ export const playerService = {
 
   getActiveParticipation: async (
     telegramId: number,
-  ): Promise<ActiveParticipationDto | null> => {
+  ): Promise<ActiveParticipationDto> => {
     if (!telegramId) {
       throw new BadRequestError('Telegram ID is required', 'text');
     }
@@ -126,11 +126,15 @@ export const playerService = {
       throw new NotFoundError('Player not found', 'text');
     }
 
-    const participation =
-      await playerRepository.findActiveParticipation(telegramId);
+    const participation = await playerRepository.findActiveParticipation(
+      player.playerId,
+    );
 
-    logger.debug({ telegramId, participation }, 'Resolved active participation');
+    logger.debug(
+      { telegramId, playerId: player.playerId, participation },
+      'Resolved active participation',
+    );
 
-    return participation ?? null;
+    return participation;
   },
 };

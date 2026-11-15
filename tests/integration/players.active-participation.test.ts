@@ -6,31 +6,85 @@ import { FIXTURES } from './setup/fixtures.js';
 const app = createApp();
 const client = api(app);
 
-/** Seeded player with telegram id; used as recorder in write-flow tests. */
+/** Seeded player with telegram id; unused until a test creates a game for them. */
 const SCRATCH_PLAYER_ID = 9010;
 const SCRATCH_TELEGRAM_ID = 900010;
 
+async function clearScratchActiveGames(): Promise<void> {
+  // Other integration files may leave scratch (900010) recording/seated.
+  for (let i = 0; i < 5; i += 1) {
+    const roles = await client
+      .get('/api/v1/players/active-participation')
+      .query({ telegramId: SCRATCH_TELEGRAM_ID });
+    expect(roles.status).toBe(200);
+    if (!roles.body.isParticipant || roles.body.gameId == null) {
+      return;
+    }
+    const del = await client
+      .patch(`/api/v1/games/${roles.body.gameId}`)
+      .send({ deleted: true });
+    expect(del.status).toBe(200);
+  }
+}
+
 describe('GET /api/v1/players/active-participation', () => {
-  it('recorder without a seat returns 204', async () => {
+  it('player with no active game has both role flags false', async () => {
+    await clearScratchActiveGames();
+
+    const res = await client
+      .get('/api/v1/players/active-participation')
+      .query({ telegramId: SCRATCH_TELEGRAM_ID });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
+  });
+
+  it('recorder without a seat is participant and recorder', async () => {
     const res = await client
       .get('/api/v1/players/active-participation')
       .query({ telegramId: FIXTURES.emptyGameRecorderTelegramId });
 
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: FIXTURES.emptyGameId,
+    });
   });
 
-  it('seeded seated player returns gameId without requiring a hand', async () => {
+  it('seeded seated non-recorder is participant only', async () => {
     const res = await client
       .get('/api/v1/players/active-participation')
       .query({ telegramId: FIXTURES.players[3].telegramId });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
+      isParticipant: true,
+      isRecorder: false,
       gameId: FIXTURES.gameId,
     });
   });
 
-  it('seated player without a completed hand still returns gameId', async () => {
+  it('seeded recorder who is also seated has both role flags', async () => {
+    const res = await client
+      .get('/api/v1/players/active-participation')
+      .query({ telegramId: FIXTURES.recorderTelegramId });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: FIXTURES.gameId,
+    });
+  });
+
+  it('creating and seating a game flips scratch player to both role flags', async () => {
+    await clearScratchActiveGames();
+
     const gameRes = await client
       .post('/api/v1/games')
       .send({ telegramId: SCRATCH_TELEGRAM_ID });
@@ -47,45 +101,39 @@ describe('GET /api/v1/players/active-participation', () => {
       .query({ telegramId: SCRATCH_TELEGRAM_ID });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ gameId });
+    expect(res.body).toEqual({
+      isParticipant: true,
+      isRecorder: true,
+      gameId,
+    });
   });
 });
 
 /**
  * Mirrors the telegram bot `/score` command API sequence:
- * 1. GET /players/active-participation (seating only)
+ * 1. GET /players/active-participation (roles + gameId)
  * 2. GET /games/:id/hands/last-completed (204 when no completed hand)
  * 3. GET /hands/:id (situation text input)
  */
 describe('bot /score participation check (API sequence)', () => {
-  it('not seated → participation 204 (bot: not in a game)', async () => {
+  it('unknown telegram → 404 (bot maps to not in a game)', async () => {
+    const participation = await client
+      .get('/api/v1/players/active-participation')
+      .query({ telegramId: FIXTURES.unusedTelegramId });
+
+    expect(participation.status).toBe(404);
+  });
+
+  it('participant without completed hand → roles + last-completed 204', async () => {
     const participation = await client
       .get('/api/v1/players/active-participation')
       .query({ telegramId: FIXTURES.emptyGameRecorderTelegramId });
-
-    expect(participation.status).toBe(204);
-  });
-
-  it('seated without completed hand → participation 200, last-completed 204', async () => {
-    const gameRes = await client
-      .post('/api/v1/games')
-      .send({ telegramId: SCRATCH_TELEGRAM_ID });
-    expect(gameRes.status).toBe(201);
-    const gameId = gameRes.body.gameId as number;
-
-    const seatRes = await client
-      .post(`/api/v1/games/${gameId}/players`)
-      .send({ startingSeat: 1, playerId: SCRATCH_PLAYER_ID });
-    expect(seatRes.status).toBe(201);
-
-    const participation = await client
-      .get('/api/v1/players/active-participation')
-      .query({ telegramId: SCRATCH_TELEGRAM_ID });
     expect(participation.status).toBe(200);
-    expect(participation.body).toEqual({ gameId });
+    expect(participation.body.isParticipant).toBe(true);
+    expect(participation.body.gameId).toBe(FIXTURES.emptyGameId);
 
     const lastCompleted = await client.get(
-      `/api/v1/games/${gameId}/hands/last-completed`,
+      `/api/v1/games/${FIXTURES.emptyGameId}/hands/last-completed`,
     );
     expect(lastCompleted.status).toBe(204);
   });
@@ -97,7 +145,11 @@ describe('bot /score participation check (API sequence)', () => {
       .get('/api/v1/players/active-participation')
       .query({ telegramId });
     expect(participation.status).toBe(200);
-    expect(participation.body).toEqual({ gameId: FIXTURES.gameId });
+    expect(participation.body).toMatchObject({
+      isParticipant: true,
+      isRecorder: false,
+      gameId: FIXTURES.gameId,
+    });
 
     const lastCompleted = await client.get(
       `/api/v1/games/${participation.body.gameId}/hands/last-completed`,

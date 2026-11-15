@@ -56,7 +56,10 @@ export type SessionGameDto = CurrentGameDto & {
 };
 
 export type ActiveParticipationDto = {
-  gameId: number;
+  isParticipant: boolean;
+  isRecorder: boolean;
+  /** Present when isParticipant is true (recorder and/or seated). */
+  gameId: number | null;
 };
 
 export type HasOutcomeDto = {
