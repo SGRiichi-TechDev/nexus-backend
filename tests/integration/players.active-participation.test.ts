@@ -11,8 +11,10 @@ const SCRATCH_PLAYER_ID = 9010;
 const SCRATCH_TELEGRAM_ID = 900010;
 
 async function clearScratchActiveGames(): Promise<void> {
-  // Other integration files may leave scratch (900010) recording/seated.
-  for (let i = 0; i < 5; i += 1) {
+  // Write-flow ITs leave many incomplete games recorded by scratch (900010).
+  // Soft-delete until active-participation reports inactive.
+  const maxDeletes = 100;
+  for (let i = 0; i < maxDeletes; i += 1) {
     const roles = await client
       .get('/api/v1/players/active-participation')
       .query({ telegramId: SCRATCH_TELEGRAM_ID });
@@ -25,6 +27,9 @@ async function clearScratchActiveGames(): Promise<void> {
       .send({ deleted: true });
     expect(del.status).toBe(200);
   }
+  throw new Error(
+    `scratch player ${SCRATCH_TELEGRAM_ID} still active after ${maxDeletes} soft-deletes`,
+  );
 }
 
 describe('GET /api/v1/players/active-participation', () => {
