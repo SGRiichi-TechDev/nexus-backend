@@ -126,14 +126,15 @@ export const playerService = {
       throw new NotFoundError('Player not found', 'text');
     }
 
-    const participation =
-      await playerRepository.findActiveParticipation(telegramId);
+    const participation = await playerRepository.findActiveParticipation(
+      player.playerId,
+    );
 
-    logger.debug({ telegramId, participation }, 'Resolved active participation');
+    logger.debug(
+      { telegramId, playerId: player.playerId, participation },
+      'Resolved active participation',
+    );
 
-    return {
-      gameId: participation?.gameId ?? null,
-      handId: participation?.handId ?? null,
-    };
+    return participation;
   },
 };

@@ -160,15 +160,55 @@ describe('playerService.getByTelegramId', () => {
 });
 
 describe('playerService.getActiveParticipation', () => {
-  it('returns null ids when no active game', async () => {
+  it('returns inactive roles when not in a game', async () => {
     mockedPlayerRepo.findByTelegramId.mockResolvedValue({
       playerId: 1,
     } as never);
-    mockedPlayerRepo.findActiveParticipation.mockResolvedValue(undefined);
+    mockedPlayerRepo.findActiveParticipation.mockResolvedValue({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
 
     await expect(playerService.getActiveParticipation(12345)).resolves.toEqual({
+      isParticipant: false,
+      isRecorder: false,
       gameId: null,
-      handId: null,
+    });
+    expect(mockedPlayerRepo.findActiveParticipation).toHaveBeenCalledWith(1);
+  });
+
+  it('returns participant-only roles when seated but not recording', async () => {
+    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
+      playerId: 1,
+    } as never);
+    mockedPlayerRepo.findActiveParticipation.mockResolvedValue({
+      isParticipant: true,
+      isRecorder: false,
+      gameId: 10,
+    });
+
+    await expect(playerService.getActiveParticipation(12345)).resolves.toEqual({
+      isParticipant: true,
+      isRecorder: false,
+      gameId: 10,
+    });
+  });
+
+  it('returns recorder as participant', async () => {
+    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
+      playerId: 1,
+    } as never);
+    mockedPlayerRepo.findActiveParticipation.mockResolvedValue({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 10,
+    });
+
+    await expect(playerService.getActiveParticipation(12345)).resolves.toEqual({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 10,
     });
   });
 });

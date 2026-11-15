@@ -152,6 +152,48 @@ describe('getPlayerById', () => {
   });
 });
 
+describe('getActiveParticipation', () => {
+  it('returns inactive role flags when not in a game', async () => {
+    mockedService.getActiveParticipation.mockResolvedValue({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
+
+    const req = { query: { telegramId: '12345' } } as unknown as Request;
+    const res = mockResponse();
+
+    await playerController.getActiveParticipation(req, res);
+
+    expect(mockedService.getActiveParticipation).toHaveBeenCalledWith(12345);
+    expect(res.json).toHaveBeenCalledWith({
+      isParticipant: false,
+      isRecorder: false,
+      gameId: null,
+    });
+  });
+
+  it('returns role flags when seated or recording', async () => {
+    mockedService.getActiveParticipation.mockResolvedValue({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 42,
+    });
+
+    const req = { query: { telegramId: '12345' } } as unknown as Request;
+    const res = mockResponse();
+
+    await playerController.getActiveParticipation(req, res);
+
+    expect(mockedService.getActiveParticipation).toHaveBeenCalledWith(12345);
+    expect(res.json).toHaveBeenCalledWith({
+      isParticipant: true,
+      isRecorder: true,
+      gameId: 42,
+    });
+  });
+});
+
 describe('getCurrentGameForPlayer', () => {
   it('propagates BadRequestError when telegramId is missing or invalid', async () => {
     mockedService.getCurrentGame.mockRejectedValue(

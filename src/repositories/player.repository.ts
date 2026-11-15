@@ -3,7 +3,6 @@ import type { ActiveParticipationDto, PlayerInfo } from '#db/types.js';
 import {
   gameInfo,
   gameResult,
-  handInfo,
   playerInfo,
 } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
@@ -144,16 +143,26 @@ export const playerRepository = {
   },
 
   findActiveParticipation: async (
-    telegramId: number,
-  ): Promise<ActiveParticipationDto | undefined> => {
+    playerId: number,
+  ): Promise<ActiveParticipationDto> => {
     const start = performance.now();
-    const result = await db
-      .select({
-        gameId: gameInfo.gameId,
-        handId: handInfo.handId,
-      })
-      .from(playerInfo)
-      .innerJoin(gameResult, eq(playerInfo.playerId, gameResult.playerId))
+
+    const recording = await db
+      .select({ gameId: gameInfo.gameId })
+      .from(gameInfo)
+      .where(
+        and(
+          eq(gameInfo.recordedByPid, playerId),
+          eq(gameInfo.deleted, false),
+          eq(gameInfo.completed, false),
+        ),
+      )
+      .orderBy(desc(gameInfo.gameId))
+      .limit(1);
+
+    const seated = await db
+      .select({ gameId: gameInfo.gameId })
+      .from(gameResult)
       .innerJoin(
         gameInfo,
         and(
@@ -162,25 +171,27 @@ export const playerRepository = {
           eq(gameInfo.completed, false),
         ),
       )
-      .innerJoin(
-        handInfo,
-        and(
-          eq(gameInfo.gameId, handInfo.gameId),
-          eq(handInfo.completed, true),
-        ),
-      )
-      .where(eq(playerInfo.telegramId, telegramId))
-      .orderBy(desc(handInfo.handId))
+      .where(eq(gameResult.playerId, playerId))
+      .orderBy(desc(gameInfo.gameId))
       .limit(1);
+
+    const isRecorder = recording[0] !== undefined;
+    const isSeated = seated[0] !== undefined;
+    // Recorders count as participants even before they are seated.
+    const isParticipant = isRecorder || isSeated;
+    const gameId = recording[0]?.gameId ?? seated[0]?.gameId ?? null;
+
     logger.debug(
       {
         query: 'findActiveParticipation',
-        telegramId,
-        rowCount: result.length,
+        playerId,
+        isParticipant,
+        isRecorder,
+        gameId,
         durationMs: Math.round(performance.now() - start),
       },
       'player.findActiveParticipation',
     );
-    return result[0];
+    return { isParticipant, isRecorder, gameId };
   },
 };
