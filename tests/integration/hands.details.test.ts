@@ -20,7 +20,7 @@ describe('GET /api/v1/hands/:id', () => {
       riichiDeposits: 0,
       han: 3,
       fu: 30,
-      handValue: 3900,
+      handValue: 39,
     });
     expect(res.body.individualResult).toHaveLength(4);
     expect(

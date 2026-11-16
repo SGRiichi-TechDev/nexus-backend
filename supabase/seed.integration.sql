@@ -52,7 +52,7 @@ VALUES (
   9001,
   'IT Ruleset',
   'Integration test ruleset',
-  25000,
+  250,
   'Aka-Ari',
   15,
   5,
@@ -170,10 +170,10 @@ INSERT INTO public.game_result (
   submitted_row
 )
 VALUES
-  (9001, 1, 9001, 35000, 1, 0, false),
-  (9001, 2, 9002, 28000, 2, 0, false),
-  (9001, 3, 9003, 22000, 3, 0, false),
-  (9001, 4, 9004, 15000, 4, 0, false);
+  (9001, 1, 9001, 350, 1, 0, false),
+  (9001, 2, 9002, 280, 2, 0, false),
+  (9001, 3, 9003, 220, 3, 0, false),
+  (9001, 4, 9004, 150, 4, 0, false);
 
 INSERT INTO public.hand_info (
   hand_id,
@@ -219,10 +219,10 @@ INSERT INTO public.hand_player_result (
   submitted_row
 )
 VALUES
-  (900101, 9001, 90010, 9001, 'Tsumo', 1, false, false, NULL, false, 8000, 25000, false, false, true, false),
-  (900102, 9001, 90010, 9002, 'Tsumo-loss', 2, false, false, NULL, false, -2000, 25000, false, false, false, false),
-  (900103, 9001, 90010, 9003, 'Tsumo-loss', 3, false, false, NULL, false, -2000, 25000, false, false, false, false),
-  (900104, 9001, 90010, 9004, 'Tsumo-loss', 4, false, false, NULL, false, -4000, 25000, false, false, false, false);
+  (900101, 9001, 90010, 9001, 'Tsumo', 1, false, false, NULL, false, 80, 250, false, false, true, false),
+  (900102, 9001, 90010, 9002, 'Tsumo-loss', 2, false, false, NULL, false, -20, 250, false, false, false, false),
+  (900103, 9001, 90010, 9003, 'Tsumo-loss', 3, false, false, NULL, false, -20, 250, false, false, false, false),
+  (900104, 9001, 90010, 9004, 'Tsumo-loss', 4, false, false, NULL, false, -40, 250, false, false, false, false);
 
 INSERT INTO public.hand_win (
   hand_id,
@@ -237,6 +237,6 @@ VALUES (
   9001,
   3,
   30,
-  3900,
+  39,
   'Tsumo'
 );

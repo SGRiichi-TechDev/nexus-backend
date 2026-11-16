@@ -422,6 +422,39 @@ describe('write flow: settings and game completion', () => {
     expect(flags?.endedAt).not.toBeNull();
   });
 
+  it('rejects final-score-only completion when shortfall is not a whole riichi stick', async () => {
+    const { gameId } = await bootstrapScratchGame();
+    await applyItRuleset(gameId);
+    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+
+    const scores = [400, 300, 200, 95];
+    for (let seat = 1; seat <= 4; seat += 1) {
+      await client
+        .put(`/api/v1/games/${gameId}/seats/${seat}/final-score`)
+        .send({ score: scores[seat - 1] });
+    }
+
+    const complete = await client.post(`/api/v1/games/${gameId}/complete`);
+    expect(complete.status).toBe(400);
+    expect((await readGameCompletion(gameId))?.completed).toBe(false);
+  });
+
+  it('rejects final-score-only completion when total exceeds the pool', async () => {
+    const { gameId } = await bootstrapScratchGame();
+    await applyItRuleset(gameId);
+    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+
+    const scores = [500, 400, 300, 100];
+    for (let seat = 1; seat <= 4; seat += 1) {
+      await client
+        .put(`/api/v1/games/${gameId}/seats/${seat}/final-score`)
+        .send({ score: scores[seat - 1] });
+    }
+
+    const complete = await client.post(`/api/v1/games/${gameId}/complete`);
+    expect(complete.status).toBe(400);
+  });
+
   it('returns 404 for missing games on new write routes', async () => {
     const routes: Array<{
       call: () => ReturnType<typeof client.post>;
