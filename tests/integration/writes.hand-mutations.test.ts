@@ -143,22 +143,22 @@ describe('write flow: hand mid-game mutations', () => {
         updates: [
           {
             handPlayerResultId: winnerHpr.handPlayerResultId,
-            scoreChange: 3900,
+            scoreChange: 39,
             winner: true,
           },
           {
             handPlayerResultId: loserHpr.handPlayerResultId,
-            scoreChange: -3900,
+            scoreChange: -39,
             winner: false,
           },
         ],
-        winnerHandValue: 3910,
+        winnerHandValue: 49,
       });
     expect(scoreRes.status).toBe(200);
 
     const afterScore = await client.get(`/api/v1/hands/${handId}`);
     expect(afterScore.body.riichiDeposits).toBe(0);
-    expect(afterScore.body.handValue).toBe(3910);
+    expect(afterScore.body.handValue).toBe(49);
 
     const confirmRes = await client.post(`/api/v1/hands/${handId}/confirm`);
     expect(confirmRes.status).toBe(200);
@@ -399,16 +399,16 @@ describe('write flow: hand mid-game mutations', () => {
         updates: [
           {
             handPlayerResultId: winnerHpr.handPlayerResultId,
-            scoreChange: 1000,
+            scoreChange: 10,
             winner: true,
           },
           {
             handPlayerResultId: loserHpr.handPlayerResultId,
-            scoreChange: -1000,
+            scoreChange: -10,
             winner: false,
           },
         ],
-        winnerHandValue: 1010,
+        winnerHandValue: 20,
       });
     expect(scoreRes.status).toBe(200);
 
