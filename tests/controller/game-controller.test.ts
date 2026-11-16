@@ -391,7 +391,7 @@ describe('getPlayersByGameId', () => {
 describe('getRulesetInfoByGameId', () => {
   it('returns ruleset on success', async () => {
     const fakeRuleset = {
-      initialValue: 25000,
+      initialValue: 250,
       aka: 'Aka-Ari' as const,
       umaP1: 15,
       umaP2: 5,

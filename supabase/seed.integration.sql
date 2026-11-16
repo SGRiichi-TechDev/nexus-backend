@@ -219,10 +219,10 @@ INSERT INTO public.hand_player_result (
   submitted_row
 )
 VALUES
-  (900101, 9001, 90010, 9001, 'Tsumo', 1, false, false, NULL, false, 8000, 25000, false, false, true, false),
-  (900102, 9001, 90010, 9002, 'Tsumo-loss', 2, false, false, NULL, false, -2000, 25000, false, false, false, false),
-  (900103, 9001, 90010, 9003, 'Tsumo-loss', 3, false, false, NULL, false, -2000, 25000, false, false, false, false),
-  (900104, 9001, 90010, 9004, 'Tsumo-loss', 4, false, false, NULL, false, -4000, 25000, false, false, false, false);
+  (900101, 9001, 90010, 9001, 'Tsumo', 1, false, false, NULL, false, 80, 250, false, false, true, false),
+  (900102, 9001, 90010, 9002, 'Tsumo-loss', 2, false, false, NULL, false, -20, 250, false, false, false, false),
+  (900103, 9001, 90010, 9003, 'Tsumo-loss', 3, false, false, NULL, false, -20, 250, false, false, false, false),
+  (900104, 9001, 90010, 9004, 'Tsumo-loss', 4, false, false, NULL, false, -40, 250, false, false, false, false);
 
 INSERT INTO public.hand_win (
   hand_id,
@@ -237,6 +237,6 @@ VALUES (
   9001,
   3,
   30,
-  3900,
+  39,
   'Tsumo'
 );
