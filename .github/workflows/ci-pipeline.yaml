@@ -26,5 +26,7 @@ jobs:
           cache: 'npm'
       - name: Install npm dependencies
         run: npm ci
+      - name: Run Biome check
+        run: npx biome ci .
       - name: Run npm test
         run: npm test
