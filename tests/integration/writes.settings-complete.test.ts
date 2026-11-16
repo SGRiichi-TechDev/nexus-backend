@@ -425,7 +425,9 @@ describe('write flow: settings and game completion', () => {
   it('rejects final-score-only completion when shortfall is not a whole riichi stick', async () => {
     const { gameId } = await bootstrapScratchGame();
     await applyItRuleset(gameId);
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
 
     const scores = [400, 300, 200, 95];
     for (let seat = 1; seat <= 4; seat += 1) {
@@ -442,7 +444,9 @@ describe('write flow: settings and game completion', () => {
   it('rejects final-score-only completion when total exceeds the pool', async () => {
     const { gameId } = await bootstrapScratchGame();
     await applyItRuleset(gameId);
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
 
     const scores = [500, 400, 300, 100];
     for (let seat = 1; seat <= 4; seat += 1) {
