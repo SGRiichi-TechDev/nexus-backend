@@ -37,6 +37,9 @@ import { computeFinalPosition } from '#repositories/position.util.js';
 
 const logger = createLogger('game.repository');
 
+// One riichi stick = 1000 points = 10 in hundreds notation (scores stored in hundreds).
+const RIICHI_STICK_VALUE = 10;
+
 export const gameRepository = {
   allocateNextGameId: async (): Promise<number> => {
     const start = performance.now();
@@ -632,6 +635,33 @@ export const gameRepository = {
       }
 
       if (game.finalScoreOnly) {
+        const [seatScores, rulesetRows] = await Promise.all([
+          tx
+            .select({ score: gameResult.finalScore })
+            .from(gameResult)
+            .where(eq(gameResult.gameId, gameId)),
+          tx
+            .select({ initialValue: rulesetInfo.initialValue })
+            .from(gameInfo)
+            .innerJoin(
+              rulesetInfo,
+              eq(gameInfo.rulesetId, rulesetInfo.rulesetId),
+            )
+            .where(eq(gameInfo.gameId, gameId))
+            .limit(1),
+        ]);
+        const initialValue = rulesetRows[0]?.initialValue;
+        if (initialValue !== undefined && seatScores.length === 4) {
+          const shortfall =
+            initialValue * 4 -
+            seatScores.reduce((sum, row) => sum + row.score, 0);
+          if (shortfall < 0 || shortfall % RIICHI_STICK_VALUE !== 0) {
+            throw new BadRequestError(
+              `Final scores do not tally: shortfall of ${shortfall} must be a non-negative multiple of ${RIICHI_STICK_VALUE} (one riichi stick, in hundreds)`,
+              'json',
+            );
+          }
+        }
         const updated = await tx
           .update(gameInfo)
           .set({

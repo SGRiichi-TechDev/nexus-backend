@@ -14,3 +14,7 @@ A backend web application server for Project Nexus built using Express running o
 ## Local database
 
 For a development Supabase Postgres instance built from `supabase/migrations`, see [docker/README.md](docker/README.md).
+
+## Further docs
+
+- [Score units and final-score validation](docs/score_validation.md)

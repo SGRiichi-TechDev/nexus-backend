@@ -435,7 +435,7 @@ describe('gameService.getRuleset', () => {
   });
 
   it('returns ruleset when found', async () => {
-    const ruleset = { initialValue: 25000 } as never;
+    const ruleset = { initialValue: 250 } as never;
     mockedRepo.findRulesetByGameId.mockResolvedValue(ruleset);
 
     await expect(gameService.getRuleset(1)).resolves.toEqual(ruleset);
@@ -460,7 +460,7 @@ describe('gameService.getFinalScore', () => {
   it('returns final score when found', async () => {
     const finalScore = {
       gameId: 1,
-      initialValue: 25000,
+      initialValue: 250,
       umaP1: 15,
       umaP2: 5,
       umaP3: -5,
