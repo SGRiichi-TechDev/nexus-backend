@@ -1,28 +1,3 @@
-import { db } from '#db/index.js';
-import type {
-  HandDetailsDto,
-  HandIdDto,
-  HandMutationResponseDto,
-  HandWinCreateResponseDto,
-  IndividualOutcome,
-  MultipleRonStatusDto,
-  PlayerInfo,
-  ScoreCalcInputDto,
-  Wind,
-} from '#db/types.js';
-import { BadRequestError, NotFoundError } from '#errors/app-error.js';
-import {
-  gameInfo,
-  gameResult,
-  handInfo,
-  handPlayerResult,
-  handTransaction,
-  handWin,
-  handYaku,
-  playerInfo,
-  rulesetInfo,
-} from '#drizzle/schema.js';
-import { createLogger } from '#logger/logger.js';
 import {
   and,
   asc,
@@ -36,6 +11,31 @@ import {
   notInArray,
   sql,
 } from 'drizzle-orm';
+import { db } from '#db/index.js';
+import type {
+  HandDetailsDto,
+  HandIdDto,
+  HandMutationResponseDto,
+  HandWinCreateResponseDto,
+  IndividualOutcome,
+  MultipleRonStatusDto,
+  PlayerInfo,
+  ScoreCalcInputDto,
+  Wind,
+} from '#db/types.js';
+import {
+  gameInfo,
+  gameResult,
+  handInfo,
+  handPlayerResult,
+  handTransaction,
+  handWin,
+  handYaku,
+  playerInfo,
+  rulesetInfo,
+} from '#drizzle/schema.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { createLogger } from '#logger/logger.js';
 
 const logger = createLogger('hand.repository');
 
@@ -56,10 +56,7 @@ const mapWinType = (
 };
 
 // TODO(leftover_riichi_rule): end-of-game leftover pot (lost | to_first) is not handled by mid-hand mutations.
-const computeHandPot = async (
-  tx: DbOrTx,
-  handId: number,
-): Promise<number> => {
+const computeHandPot = async (tx: DbOrTx, handId: number): Promise<number> => {
   const [handRow, aggRow] = await Promise.all([
     tx
       .select({ riichiPotStart: handInfo.riichiPotStart })
@@ -127,10 +124,7 @@ export const handRepository = {
     const query = db
       .select(getColumns(playerInfo))
       .from(handPlayerResult)
-      .innerJoin(
-        playerInfo,
-        eq(handPlayerResult.playerId, playerInfo.playerId),
-      )
+      .innerJoin(playerInfo, eq(handPlayerResult.playerId, playerInfo.playerId))
       .where(and(eq(handPlayerResult.handId, handId), eq(flagColumn, true)));
 
     const players =
@@ -290,10 +284,7 @@ export const handRepository = {
       .from(handInfo)
       .leftJoin(handWin, eq(handInfo.handId, handWin.handId))
       .innerJoin(gameInfo, eq(handInfo.gameId, gameInfo.gameId))
-      .leftJoin(
-        rulesetInfo,
-        eq(gameInfo.rulesetId, rulesetInfo.rulesetId),
-      )
+      .leftJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
       .where(eq(handInfo.handId, handId))
       .limit(1);
 
@@ -1084,10 +1075,7 @@ export const handRepository = {
             scoreChange: sql`(case when ${handPlayerResult.riichi} then -10 else 0 end) + ${update.scoreChange}`,
           })
           .where(
-            eq(
-              handPlayerResult.handPlayerResultId,
-              update.handPlayerResultId,
-            ),
+            eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
           );
 
         if (update.winner && current.outcome) {
@@ -1189,10 +1177,7 @@ export const handRepository = {
           .update(handPlayerResult)
           .set({ position: String(position) })
           .where(
-            eq(
-              handPlayerResult.handPlayerResultId,
-              row.handPlayerResultId,
-            ),
+            eq(handPlayerResult.handPlayerResultId, row.handPlayerResultId),
           );
       }
     });
@@ -1267,18 +1252,18 @@ export const handRepository = {
         return null;
       }
 
-      await tx.delete(handYaku).where(
-        inArray(
-          handYaku.handWinId,
-          tx
-            .select({ id: handWin.handWinId })
-            .from(handWin)
-            .where(eq(handWin.handId, latestHandId)),
-        ),
-      );
       await tx
-        .delete(handWin)
-        .where(eq(handWin.handId, latestHandId));
+        .delete(handYaku)
+        .where(
+          inArray(
+            handYaku.handWinId,
+            tx
+              .select({ id: handWin.handWinId })
+              .from(handWin)
+              .where(eq(handWin.handId, latestHandId)),
+          ),
+        );
+      await tx.delete(handWin).where(eq(handWin.handId, latestHandId));
       await tx
         .delete(handTransaction)
         .where(eq(handTransaction.handId, latestHandId));

@@ -1,5 +1,5 @@
+import type { Request, Response } from 'express';
 import { playerService } from '#services/player.service.js';
-import { type Request, type Response } from 'express';
 
 const playerController = {
   createPlayer: async (req: Request, res: Response) => {
@@ -8,7 +8,7 @@ const playerController = {
     res.status(201).json(player);
   },
 
-  getAllPlayers: async (req: Request, res: Response) => {
+  getAllPlayers: async (_req: Request, res: Response) => {
     const result = await playerService.list();
     res.json(result);
   },

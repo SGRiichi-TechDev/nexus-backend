@@ -1,4 +1,5 @@
-import {
+import type { InferSelectModel } from 'drizzle-orm';
+import type {
   akaEnum,
   chomboOptionEnum,
   gameInfo,
@@ -12,7 +13,6 @@ import {
   scoreLookup,
   windEnum,
 } from '#drizzle/schema.js';
-import type { InferSelectModel } from 'drizzle-orm';
 
 export type PlayerInfo = InferSelectModel<typeof playerInfo>;
 export type GameResult = InferSelectModel<typeof gameResult>;

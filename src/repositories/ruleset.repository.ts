@@ -1,17 +1,8 @@
+import { and, asc, eq, gte, isNull, lte, ne, or } from 'drizzle-orm';
 import { db } from '#db/index.js';
 import type { UpdateRulesetPatch } from '#db/types.js';
 import { gameInfo, rulesetInfo } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
-import {
-  and,
-  asc,
-  eq,
-  gte,
-  isNull,
-  lte,
-  ne,
-  or,
-} from 'drizzle-orm';
 
 const logger = createLogger('ruleset.repository');
 
@@ -68,11 +59,7 @@ export const rulesetRepository = {
       .select({ rulesetId: rulesetInfo.rulesetId })
       .from(rulesetInfo)
       .where(
-        and(
-          eq(rulesetInfo.name, name),
-          notCustomRuleset,
-          availableWindow(now),
-        ),
+        and(eq(rulesetInfo.name, name), notCustomRuleset, availableWindow(now)),
       )
       .orderBy(asc(rulesetInfo.rulesetId))
       .limit(1);

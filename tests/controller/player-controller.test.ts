@@ -1,11 +1,11 @@
+import type { Request, Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import playerController from '#controller/player-controller.js';
-import { playerStatusEnum } from '#drizzle/schema.js';
+import type { playerStatusEnum } from '#drizzle/schema.js';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { playerService } from '#services/player.service.js';
-import { type Request, type Response } from 'express';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-export type Status = (typeof playerStatusEnum.enumValues)[number];
+type Status = (typeof playerStatusEnum.enumValues)[number];
 
 vi.mock('#services/player.service.js', () => ({
   playerService: {

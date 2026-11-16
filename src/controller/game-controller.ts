@@ -1,6 +1,6 @@
+import type { Request, Response } from 'express';
 import type { UpdateGamePatch } from '#db/types.js';
 import { gameService } from '#services/game.service.js';
-import { type Request, type Response } from 'express';
 
 const gameController = {
   async createGame(req: Request, res: Response) {
@@ -151,10 +151,7 @@ const gameController = {
 
   async applyRuleset(req: Request, res: Response) {
     const gameId = Number(req.params.id);
-    const result = await gameService.applyNamedRuleset(
-      gameId,
-      req.body?.name,
-    );
+    const result = await gameService.applyNamedRuleset(gameId, req.body?.name);
     res.status(200).json(result);
   },
 

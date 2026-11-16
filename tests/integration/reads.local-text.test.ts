@@ -1,8 +1,8 @@
-import { createApp } from '../../src/app.js';
-import { db } from '../../src/db/index.js';
-import { localText } from '#drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { localText } from '#drizzle/schema.js';
+import { createApp } from '../../src/app.js';
+import { db } from '../../src/db/index.js';
 import { api } from './setup/api.js';
 
 const app = createApp();

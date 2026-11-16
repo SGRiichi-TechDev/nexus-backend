@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { handRepository } from '#repositories/hand.repository.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#repositories/hand.repository.js', () => ({
   handRepository: {
@@ -308,11 +308,10 @@ describe('handService tenpai chombo score confirm', () => {
       handId: 5,
     });
 
-    const expected = computeChomboScoreByPlayer(
-      [1, 2, 3, 4],
-      [1],
-      { chomboValue: 1000, chomboOption: 'Payment to all' },
-    );
+    const expected = computeChomboScoreByPlayer([1, 2, 3, 4], [1], {
+      chomboValue: 1000,
+      chomboOption: 'Payment to all',
+    });
     expect(mockedRepo.applyChomboScores).toHaveBeenCalledWith(5, expected);
     expect(expected.get(1)).toBe(-3000);
     expect(expected.get(2)).toBe(1000);
@@ -330,11 +329,10 @@ describe('handService tenpai chombo score confirm', () => {
 
     await handService.applyChombo(8, [10, 20]);
 
-    const expected = computeChomboScoreByPlayer(
-      [10, 20, 30, 40],
-      [10, 20],
-      { chomboValue: 500, chomboOption: 'Flat deduction' },
-    );
+    const expected = computeChomboScoreByPlayer([10, 20, 30, 40], [10, 20], {
+      chomboValue: 500,
+      chomboOption: 'Flat deduction',
+    });
     expect(expected.get(10)).toBe(-500);
     expect(expected.get(30)).toBe(0);
     expect(mockedRepo.applyChomboScores).toHaveBeenCalledWith(8, expected);
@@ -343,9 +341,9 @@ describe('handService tenpai chombo score confirm', () => {
   it('applyScoreChanges no-ops on empty updates', async () => {
     mockedRepo.existsById.mockResolvedValue(true);
 
-    await expect(
-      handService.applyScoreChanges(1, [], null),
-    ).resolves.toEqual({ handId: 1 });
+    await expect(handService.applyScoreChanges(1, [], null)).resolves.toEqual({
+      handId: 1,
+    });
     expect(mockedRepo.applyScoreChanges).not.toHaveBeenCalled();
   });
 

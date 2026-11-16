@@ -1,5 +1,5 @@
-import { createApp } from '../../src/app.js';
 import { describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 

@@ -1,28 +1,3 @@
-import { db } from '#db/index.js';
-import type {
-  CurrentGameDto,
-  FinalScoreDto,
-  HandIdDto,
-  LastHandForNextDto,
-  PenaltyDto,
-  PlayerInfo,
-  RulesetInfoSelect,
-  VenueModeDto,
-} from '#db/types.js';
-import { BadRequestError, NotFoundError } from '#errors/app-error.js';
-import { computeFinalPosition } from '#repositories/position.util.js';
-import {
-  gameInfo,
-  gameResult,
-  handInfo,
-  handPlayerResult,
-  handWin,
-  mode,
-  playerInfo,
-  rulesetInfo,
-  venue,
-} from '#drizzle/schema.js';
-import { createLogger } from '#logger/logger.js';
 import {
   and,
   asc,
@@ -34,6 +9,31 @@ import {
   max,
   sql,
 } from 'drizzle-orm';
+import { db } from '#db/index.js';
+import type {
+  CurrentGameDto,
+  FinalScoreDto,
+  HandIdDto,
+  LastHandForNextDto,
+  PenaltyDto,
+  PlayerInfo,
+  RulesetInfoSelect,
+  VenueModeDto,
+} from '#db/types.js';
+import {
+  gameInfo,
+  gameResult,
+  handInfo,
+  handPlayerResult,
+  handWin,
+  mode,
+  playerInfo,
+  rulesetInfo,
+  venue,
+} from '#drizzle/schema.js';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { createLogger } from '#logger/logger.js';
+import { computeFinalPosition } from '#repositories/position.util.js';
 
 const logger = createLogger('game.repository');
 
@@ -125,9 +125,7 @@ export const gameRepository = {
     return result.length > 0;
   },
 
-  findVenueIdByGameId: async (
-    gameId: number,
-  ): Promise<number | undefined> => {
+  findVenueIdByGameId: async (gameId: number): Promise<number | undefined> => {
     const start = performance.now();
     const result = await db
       .select({ venueId: gameInfo.venueId })
@@ -208,7 +206,7 @@ export const gameRepository = {
 
   findFirstResultByGameId: async (
     gameId: number,
-  ): Promise<(typeof gameResult.$inferSelect) | undefined> => {
+  ): Promise<typeof gameResult.$inferSelect | undefined> => {
     const start = performance.now();
     const results = await db
       .select()
@@ -305,10 +303,7 @@ export const gameRepository = {
           umaP4: rulesetInfo.umaP4,
         })
         .from(gameInfo)
-        .innerJoin(
-          rulesetInfo,
-          eq(gameInfo.rulesetId, rulesetInfo.rulesetId),
-        )
+        .innerJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
         .where(eq(gameInfo.gameId, gameId))
         .limit(1),
     ]);
@@ -366,9 +361,7 @@ export const gameRepository = {
     const result = await db
       .select({ value: count() })
       .from(handInfo)
-      .where(
-        and(eq(handInfo.gameId, gameId), eq(handInfo.completed, true)),
-      );
+      .where(and(eq(handInfo.gameId, gameId), eq(handInfo.completed, true)));
     const total = result[0]?.value ?? 0;
     logger.debug(
       {
@@ -389,9 +382,7 @@ export const gameRepository = {
     const result = await db
       .select({ handId: handInfo.handId })
       .from(handInfo)
-      .where(
-        and(eq(handInfo.completed, true), eq(handInfo.gameId, gameId)),
-      )
+      .where(and(eq(handInfo.completed, true), eq(handInfo.gameId, gameId)))
       .orderBy(desc(handInfo.handId))
       .limit(1);
     logger.debug(
@@ -559,10 +550,7 @@ export const gameRepository = {
       .update(gameResult)
       .set({ finalScore: score })
       .where(
-        and(
-          eq(gameResult.gameId, gameId),
-          eq(gameResult.startingSeat, seat),
-        ),
+        and(eq(gameResult.gameId, gameId), eq(gameResult.startingSeat, seat)),
       )
       .returning({ startingSeat: gameResult.startingSeat });
     logger.debug(
@@ -622,9 +610,7 @@ export const gameRepository = {
     return rowsUpdated;
   },
 
-  completeGame: async (
-    gameId: number,
-  ): Promise<'noop' | 'completed'> => {
+  completeGame: async (gameId: number): Promise<'noop' | 'completed'> => {
     const start = performance.now();
     const outcome = await db.transaction(async (tx) => {
       const locked = await tx
@@ -662,9 +648,7 @@ export const gameRepository = {
       const lastHand = await tx
         .select({ handId: handInfo.handId })
         .from(handInfo)
-        .where(
-          and(eq(handInfo.completed, true), eq(handInfo.gameId, gameId)),
-        )
+        .where(and(eq(handInfo.completed, true), eq(handInfo.gameId, gameId)))
         .orderBy(desc(handInfo.handId))
         .limit(1);
 
@@ -691,9 +675,7 @@ export const gameRepository = {
         .from(handPlayerResult)
         .where(eq(handPlayerResult.handId, handId));
 
-      const handByPlayer = new Map(
-        handRows.map((row) => [row.playerId, row]),
-      );
+      const handByPlayer = new Map(handRows.map((row) => [row.playerId, row]));
 
       for (const seat of seats) {
         const playerId = seat.playerId;
@@ -734,9 +716,7 @@ export const gameRepository = {
           completed: true,
           endedAt: sql`CURRENT_TIMESTAMP`,
         })
-        .where(
-          and(eq(gameInfo.gameId, gameId), eq(gameInfo.completed, false)),
-        )
+        .where(and(eq(gameInfo.gameId, gameId), eq(gameInfo.completed, false)))
         .returning({ gameId: gameInfo.gameId });
 
       return updated.length > 0 ? ('completed' as const) : ('noop' as const);

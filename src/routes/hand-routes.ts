@@ -1,5 +1,5 @@
+import express, { type Router } from 'express';
 import handController from '#controller/hand-controller.js';
-import express, { Router } from 'express';
 
 const router: Router = express.Router();
 
@@ -11,10 +11,7 @@ router.post('/:id/riichi/apply', handController.applyRiichi);
 router.post('/:id/riichi/reset', handController.resetRiichi);
 router.patch('/:id/outcome', handController.setHandOutcome);
 router.patch('/:id/players/:playerId', handController.setPlayerOutcome);
-router.post(
-  '/:id/players/:playerId/deal-in',
-  handController.setDealIn,
-);
+router.post('/:id/players/:playerId/deal-in', handController.setDealIn);
 router.patch('/:id/han', handController.setHan);
 router.patch('/:id/fu', handController.setFu);
 router.put('/:id/tenpai', handController.replaceTenpai);

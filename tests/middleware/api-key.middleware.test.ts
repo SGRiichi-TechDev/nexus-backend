@@ -1,7 +1,7 @@
-import { UnauthorizedError } from '#errors/app-error.js';
-import { requireApiKey } from '#middleware/api-key.middleware.js';
 import type { NextFunction, Request, Response } from 'express';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { UnauthorizedError } from '#errors/app-error.js';
+import { requireApiKey } from '#middleware/api-key.middleware.js';
 
 const mockRequest = (apiKey?: string): Request =>
   ({

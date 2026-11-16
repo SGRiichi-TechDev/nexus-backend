@@ -1,13 +1,13 @@
-import { isAppError } from '#errors/app-error.js';
-import { requireApiKey } from '#middleware/api-key.middleware.js';
-import { requestLogger } from '#middleware/request-logger.js';
-import apiRouter from '#routes/api-router.js';
 import express, {
   type Express,
   type NextFunction,
   type Request,
   type Response,
 } from 'express';
+import { isAppError } from '#errors/app-error.js';
+import { requireApiKey } from '#middleware/api-key.middleware.js';
+import { requestLogger } from '#middleware/request-logger.js';
+import apiRouter from '#routes/api-router.js';
 
 export function createApp(): Express {
   const app: Express = express();
@@ -18,10 +18,7 @@ export function createApp(): Express {
 
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (isAppError(err)) {
-      req.log.warn(
-        { err, status: err.status, name: err.name },
-        err.message,
-      );
+      req.log.warn({ err, status: err.status, name: err.name }, err.message);
       if (err.format === 'text') {
         res.status(err.status).send(err.message);
         return;

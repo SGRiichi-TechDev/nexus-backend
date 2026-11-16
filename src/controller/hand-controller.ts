@@ -1,6 +1,6 @@
+import type { Request, Response } from 'express';
 import type { Wind } from '#db/types.js';
 import { handService } from '#services/hand.service.js';
-import { type Request, type Response } from 'express';
 
 const handController = {
   async createNextHand(req: Request, res: Response) {
@@ -62,10 +62,7 @@ const handController = {
 
   async replaceRiichi(req: Request, res: Response) {
     const handId = Number(req.params.id);
-    const result = await handService.replaceRiichi(
-      handId,
-      req.body?.playerIds,
-    );
+    const result = await handService.replaceRiichi(handId, req.body?.playerIds);
     res.status(200).json(result);
   },
 
@@ -124,10 +121,7 @@ const handController = {
 
   async replaceTenpai(req: Request, res: Response) {
     const handId = Number(req.params.id);
-    const result = await handService.replaceTenpai(
-      handId,
-      req.body?.playerIds,
-    );
+    const result = await handService.replaceTenpai(handId, req.body?.playerIds);
     res.status(200).json(result);
   },
 
@@ -142,19 +136,13 @@ const handController = {
 
   async replaceChombo(req: Request, res: Response) {
     const handId = Number(req.params.id);
-    const result = await handService.replaceChombo(
-      handId,
-      req.body?.playerIds,
-    );
+    const result = await handService.replaceChombo(handId, req.body?.playerIds);
     res.status(200).json(result);
   },
 
   async applyChombo(req: Request, res: Response) {
     const handId = Number(req.params.id);
-    const result = await handService.applyChombo(
-      handId,
-      req.body?.playerIds,
-    );
+    const result = await handService.applyChombo(handId, req.body?.playerIds);
     res.status(200).json(result);
   },
 

@@ -58,10 +58,7 @@ const parseSignedInt = (value: unknown, fieldName: string): number => {
 
 const parseRulesetPatch = (body: unknown): UpdateRulesetPatch => {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-    throw new BadRequestError(
-      'At least one ruleset field is required',
-      'json',
-    );
+    throw new BadRequestError('At least one ruleset field is required', 'json');
   }
   const raw = body as Record<string, unknown>;
   const patch: UpdateRulesetPatch = {};
@@ -110,10 +107,7 @@ const parseRulesetPatch = (body: unknown): UpdateRulesetPatch => {
   }
 
   if (Object.keys(patch).length === 0) {
-    throw new BadRequestError(
-      'At least one ruleset field is required',
-      'json',
-    );
+    throw new BadRequestError('At least one ruleset field is required', 'json');
   }
   return patch;
 };
@@ -264,7 +258,10 @@ export const gameService = {
       logger.debug({ gameId }, 'No completed hand for game');
       return null;
     }
-    logger.debug({ gameId, handId: hand.handId }, 'Resolved last completed hand');
+    logger.debug(
+      { gameId, handId: hand.handId },
+      'Resolved last completed hand',
+    );
     return hand;
   },
 
@@ -328,7 +325,10 @@ export const gameService = {
   ): Promise<AvailableRulesetsDto> => {
     await assertGameExists(gameId);
     const names = await rulesetRepository.findAvailableNames();
-    logger.debug({ gameId, count: names.length }, 'Resolved available rulesets');
+    logger.debug(
+      { gameId, count: names.length },
+      'Resolved available rulesets',
+    );
     return { names };
   },
 
@@ -405,7 +405,10 @@ export const gameService = {
     if (!updated) {
       throw new NotFoundError('Seat not found', 'json');
     }
-    logger.debug({ gameId, startingSeat: seat, score: value }, 'Set seat score');
+    logger.debug(
+      { gameId, startingSeat: seat, score: value },
+      'Set seat score',
+    );
     return { gameId, startingSeat: seat };
   },
 

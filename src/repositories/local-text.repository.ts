@@ -1,8 +1,8 @@
+import { eq } from 'drizzle-orm';
 import { db } from '#db/index.js';
 import type { LocalTextDto } from '#db/types.js';
 import { localText } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
-import { eq } from 'drizzle-orm';
 
 const logger = createLogger('local-text.repository');
 
