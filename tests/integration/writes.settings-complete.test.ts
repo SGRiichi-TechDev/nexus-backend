@@ -444,7 +444,7 @@ describe('write flow: settings and game completion', () => {
     await applyItRuleset(gameId);
     await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
 
-    const scores = [50000, 30000, 20000, 1];
+    const scores = [500, 400, 300, 100];
     for (let seat = 1; seat <= 4; seat += 1) {
       await client
         .put(`/api/v1/games/${gameId}/seats/${seat}/final-score`)

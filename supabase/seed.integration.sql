@@ -52,7 +52,7 @@ VALUES (
   9001,
   'IT Ruleset',
   'Integration test ruleset',
-  25000,
+  250,
   'Aka-Ari',
   15,
   5,
@@ -170,10 +170,10 @@ INSERT INTO public.game_result (
   submitted_row
 )
 VALUES
-  (9001, 1, 9001, 35000, 1, 0, false),
-  (9001, 2, 9002, 28000, 2, 0, false),
-  (9001, 3, 9003, 22000, 3, 0, false),
-  (9001, 4, 9004, 15000, 4, 0, false);
+  (9001, 1, 9001, 350, 1, 0, false),
+  (9001, 2, 9002, 280, 2, 0, false),
+  (9001, 3, 9003, 220, 3, 0, false),
+  (9001, 4, 9004, 150, 4, 0, false);
 
 INSERT INTO public.hand_info (
   hand_id,

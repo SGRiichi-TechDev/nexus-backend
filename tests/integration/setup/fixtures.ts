@@ -23,7 +23,7 @@ export const FIXTURES = {
     { playerId: 9006, displayName: 'IT Fran', telegramId: 900006 },
   ],
   ruleset: {
-    initialValue: 25000,
+    initialValue: 250,
     aka: 'Aka-Ari' as const,
     umaP1: 15,
     umaP2: 5,
@@ -36,9 +36,9 @@ export const FIXTURES = {
     multipleRon: false,
   },
   finalScores: [
-    { name: 'IT Alice', score: 35000, position: 1 },
-    { name: 'IT Bob', score: 28000, position: 2 },
-    { name: 'IT Carol', score: 22000, position: 3 },
-    { name: 'IT Dave', score: 15000, position: 4 },
+    { name: 'IT Alice', score: 350, position: 1 },
+    { name: 'IT Bob', score: 280, position: 2 },
+    { name: 'IT Carol', score: 220, position: 3 },
+    { name: 'IT Dave', score: 150, position: 4 },
   ],
 } as const;
