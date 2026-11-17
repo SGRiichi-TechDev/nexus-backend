@@ -91,6 +91,13 @@ Never trust client data. Validate all incoming headers, params, and request bodi
 - Ensure all application configuration settings pull exclusively from `process.env`.
 - Add logging with appropriate logging levels where necessary.
 
+- Name every new git branch with one of these prefixes, followed by a short kebab-case description (e.g. `feat/user-billing`, `fix/login-token-expiry`, `chore/update-dependencies`, `docs/branch-conventions`):
+  - `fix/` - fixes for defects or incorrect behavior.
+  - `feat/` - new functionality or enhancements to existing functionality.
+  - `chore/` - maintenance work with no functional change (tooling, CI, dependencies, refactors, formatting).
+  - `docs/` - documentation-only changes.
+- Never create a branch without one of these prefixes (no `claude/`, `bug/`, `feature/`, or unprefixed names). If a branch was auto-created with another name, rename it before committing or opening a PR.
+
 ### ASK FIRST Before Doing
 
 - Adding new third-party production dependencies via npm.
