@@ -1,5 +1,5 @@
+import type { Request, Response } from 'express';
 import { referenceService } from '#services/reference.service.js';
-import { type Request, type Response } from 'express';
 
 const referenceController = {
   async getScoreLookup(_req: Request, res: Response) {

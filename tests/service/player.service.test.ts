@@ -1,8 +1,8 @@
-import { BadRequestError, NotFoundError } from '#errors/app-error.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BadRequestError } from '#errors/app-error.js';
 import { gameRepository } from '#repositories/game.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
 import { playerService } from '#services/player.service.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#repositories/player.repository.js', () => ({
   playerRepository: {
@@ -46,9 +46,7 @@ describe('playerService.create', () => {
     } as never;
     mockedPlayerRepo.insert.mockResolvedValue(created);
 
-    await expect(playerService.create('  Casual  ')).resolves.toEqual(
-      created,
-    );
+    await expect(playerService.create('  Casual  ')).resolves.toEqual(created);
     expect(mockedPlayerRepo.insert).toHaveBeenCalledWith({
       displayName: 'Casual',
     });

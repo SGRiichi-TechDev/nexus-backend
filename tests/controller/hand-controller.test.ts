@@ -1,7 +1,7 @@
-import handController from '#controller/hand-controller.js';
-import { handService } from '#services/hand.service.js';
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import handController from '#controller/hand-controller.js';
+import { handService } from '#services/hand.service.js';
 
 vi.mock('#services/hand.service.js', () => ({
   handService: {
@@ -136,11 +136,7 @@ describe('handController mid-game mutations', () => {
 
     await handController.setPlayerOutcome(req, res);
 
-    expect(mockedService.setPlayerOutcome).toHaveBeenCalledWith(
-      8,
-      11,
-      'Tsumo',
-    );
+    expect(mockedService.setPlayerOutcome).toHaveBeenCalledWith(8, 11, 'Tsumo');
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ handId: 8, playerId: 11 });
   });

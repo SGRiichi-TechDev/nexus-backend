@@ -1,5 +1,5 @@
-import { createApp } from '../../src/app.js';
 import { describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -24,7 +24,9 @@ describe('GET /api/v1/hands/:id', () => {
     });
     expect(res.body.individualResult).toHaveLength(4);
     expect(
-      res.body.individualResult.map((r: { displayName: string }) => r.displayName),
+      res.body.individualResult.map(
+        (r: { displayName: string }) => r.displayName,
+      ),
     ).toEqual(FIXTURES.players.slice(0, 4).map((p) => p.displayName));
   });
 

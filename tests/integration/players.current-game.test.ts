@@ -1,5 +1,5 @@
-import { createApp } from '../../src/app.js';
 import { describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -16,9 +16,9 @@ describe('GET /api/v1/players/current-game', () => {
     expect(res.body.gameId).toBe(FIXTURES.gameId);
     expect(res.body.status).toBe('draft');
     expect(res.body.players).toHaveLength(4);
-    expect(res.body.players.map((p: { playerId: number }) => p.playerId)).toEqual(
-      FIXTURES.players.slice(0, 4).map((p) => p.playerId),
-    );
+    expect(
+      res.body.players.map((p: { playerId: number }) => p.playerId),
+    ).toEqual(FIXTURES.players.slice(0, 4).map((p) => p.playerId));
   });
 
   it('returns 404 for an unknown telegram id', async () => {

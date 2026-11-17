@@ -1,8 +1,8 @@
+import type { Request, Response } from 'express';
 import { venueService } from '#services/venue.service.js';
-import { type Request, type Response } from 'express';
 
 const venueController = {
-  async listActive(req: Request, res: Response) {
+  async listActive(_req: Request, res: Response) {
     const venues = await venueService.listActive();
     res.json(venues);
   },

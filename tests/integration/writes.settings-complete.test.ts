@@ -1,8 +1,8 @@
-import { createApp } from '../../src/app.js';
-import { db } from '../../src/db/index.js';
-import { gameInfo } from '#drizzle/schema.js';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { gameInfo } from '#drizzle/schema.js';
+import { createApp } from '../../src/app.js';
+import { db } from '../../src/db/index.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -113,13 +113,11 @@ describe('write flow: settings and game completion', () => {
     expect(after1.status).toBe(200);
     expect(after1.body).toEqual(CUSTOM_AFTER_FIRST_PATCH);
 
-    const patch2 = await client
-      .patch(`/api/v1/games/${gameId}/ruleset`)
-      .send({
-        multipleRon: true,
-        chomboOption: 'Flat deduction',
-        chomboValue: 0,
-      });
+    const patch2 = await client.patch(`/api/v1/games/${gameId}/ruleset`).send({
+      multipleRon: true,
+      chomboOption: 'Flat deduction',
+      chomboValue: 0,
+    });
     expect(patch2.status).toBe(200);
 
     const after2 = await client.get(`/api/v1/games/${gameId}/ruleset`);
@@ -189,9 +187,7 @@ describe('write flow: settings and game completion', () => {
       .patch(`/api/v1/games/${gameId}/ruleset`)
       .send({ initialValue: 260 });
 
-    const res = await client.get(
-      `/api/v1/games/${gameId}/available-rulesets`,
-    );
+    const res = await client.get(`/api/v1/games/${gameId}/available-rulesets`);
     expect(res.status).toBe(200);
     expect(res.body.names).toContain('IT Ruleset');
     expect(res.body.names).not.toContain('Custom');
@@ -220,9 +216,9 @@ describe('write flow: settings and game completion', () => {
       .send({ kiriageMangan: 'yes' });
     expect(badBool.status).toBe(400);
 
-    const missingGame = await client.patch(
-      `/api/v1/games/${MISSING_GAME_ID}/ruleset`,
-    ).send({ initialValue: 250 });
+    const missingGame = await client
+      .patch(`/api/v1/games/${MISSING_GAME_ID}/ruleset`)
+      .send({ initialValue: 250 });
     expect(missingGame.status).toBe(404);
 
     const finalScoreOnly = await client
@@ -259,7 +255,9 @@ describe('write flow: settings and game completion', () => {
     expect(updated).toBeDefined();
 
     const unseated = await client
-      .put(`/api/v1/games/${gameId}/players/${FIXTURES.players[3].playerId}/penalty`)
+      .put(
+        `/api/v1/games/${gameId}/players/${FIXTURES.players[3].playerId}/penalty`,
+      )
       .send({ penalty: 5 });
     expect(unseated.status).toBe(404);
     expect(unseated.body).toEqual({ error: 'Player not seated in game' });
@@ -399,7 +397,9 @@ describe('write flow: settings and game completion', () => {
     const { gameId } = await bootstrapScratchGame();
     await applyItRuleset(gameId);
 
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
 
     const scores = [400, 300, 200, 100];
     for (let seat = 1; seat <= 4; seat += 1) {
@@ -425,7 +425,9 @@ describe('write flow: settings and game completion', () => {
   it('rejects final-score-only completion when shortfall is not a whole riichi stick', async () => {
     const { gameId } = await bootstrapScratchGame();
     await applyItRuleset(gameId);
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
 
     const scores = [400, 300, 200, 95];
     for (let seat = 1; seat <= 4; seat += 1) {
@@ -442,7 +444,9 @@ describe('write flow: settings and game completion', () => {
   it('rejects final-score-only completion when total exceeds the pool', async () => {
     const { gameId } = await bootstrapScratchGame();
     await applyItRuleset(gameId);
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
 
     const scores = [500, 400, 300, 100];
     for (let seat = 1; seat <= 4; seat += 1) {
@@ -493,9 +497,7 @@ describe('write flow: settings and game completion', () => {
       {
         label: 'POST positions/recompute',
         call: () =>
-          client.post(
-            `/api/v1/games/${MISSING_GAME_ID}/positions/recompute`,
-          ),
+          client.post(`/api/v1/games/${MISSING_GAME_ID}/positions/recompute`),
       },
       {
         label: 'POST complete',

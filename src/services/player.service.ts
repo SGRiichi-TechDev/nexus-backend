@@ -27,10 +27,7 @@ export const playerService = {
     return players;
   },
 
-  getById: async (
-    id: number,
-    registeredOnly = false,
-  ): Promise<PlayerInfo> => {
+  getById: async (id: number, registeredOnly = false): Promise<PlayerInfo> => {
     const player = registeredOnly
       ? await playerRepository.findByIdRegistered(id)
       : await playerRepository.findById(id);

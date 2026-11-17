@@ -1,10 +1,10 @@
-import { referenceService } from '#services/reference.service.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { localTextRepository } from '#repositories/local-text.repository.js';
 import { scoreLookupRepository } from '#repositories/score-lookup.repository.js';
-import { venueService } from '#services/venue.service.js';
 import { venueRepository } from '#repositories/venue.repository.js';
-import { BadRequestError, NotFoundError } from '#errors/app-error.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { referenceService } from '#services/reference.service.js';
+import { venueService } from '#services/venue.service.js';
 
 vi.mock('#repositories/local-text.repository.js', () => ({
   localTextRepository: {

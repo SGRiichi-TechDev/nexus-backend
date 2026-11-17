@@ -1,11 +1,11 @@
+import type { Request, Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import gameController from '#controller/game-controller.js';
+import type { playerStatusEnum } from '#drizzle/schema.js';
 import { NotFoundError } from '#errors/app-error.js';
 import { gameService } from '#services/game.service.js';
-import type { playerStatusEnum } from '#drizzle/schema.js';
-import { type Request, type Response } from 'express';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-export type Status = (typeof playerStatusEnum.enumValues)[number];
+type Status = (typeof playerStatusEnum.enumValues)[number];
 
 vi.mock('#services/game.service.js', () => ({
   gameService: {
@@ -180,7 +180,10 @@ describe('applyRuleset', () => {
 
 describe('setPlayerPenalty', () => {
   it('returns 200 with gameId and playerId', async () => {
-    mockedService.setPlayerPenalty.mockResolvedValue({ gameId: 1, playerId: 3 });
+    mockedService.setPlayerPenalty.mockResolvedValue({
+      gameId: 1,
+      playerId: 3,
+    });
 
     const req = {
       params: { id: '1', playerId: '3' },
@@ -382,9 +385,9 @@ describe('getPlayersByGameId', () => {
     const req = { params: { id: '1' } } as unknown as Request;
     const res = mockResponse();
 
-    await expect(
-      gameController.getPlayersByGameId(req, res),
-    ).rejects.toThrow('Database error');
+    await expect(gameController.getPlayersByGameId(req, res)).rejects.toThrow(
+      'Database error',
+    );
   });
 });
 

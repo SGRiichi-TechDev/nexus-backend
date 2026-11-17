@@ -1,5 +1,5 @@
-import { computeFinalPosition } from '#repositories/position.util.js';
 import { describe, expect, it } from 'vitest';
+import { computeFinalPosition } from '#repositories/position.util.js';
 
 describe('computeFinalPosition', () => {
   it('assigns 1–4 for four distinct scores', () => {

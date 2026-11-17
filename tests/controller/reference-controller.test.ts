@@ -1,8 +1,8 @@
+import type { Request, Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import referenceController from '#controller/reference-controller.js';
 import { NotFoundError } from '#errors/app-error.js';
 import { referenceService } from '#services/reference.service.js';
-import { type Request, type Response } from 'express';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#services/reference.service.js', () => ({
   referenceService: {
@@ -47,8 +47,8 @@ describe('getLocalText', () => {
     const req = { params: { key: 'help' } } as unknown as Request;
     const res = mockResponse();
 
-    await expect(
-      referenceController.getLocalText(req, res),
-    ).rejects.toBe(error);
+    await expect(referenceController.getLocalText(req, res)).rejects.toBe(
+      error,
+    );
   });
 });

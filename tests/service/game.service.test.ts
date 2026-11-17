@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { gameRepository } from '#repositories/game.repository.js';
 import { handRepository } from '#repositories/hand.repository.js';
@@ -5,7 +6,6 @@ import { modeRepository } from '#repositories/mode.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
 import { rulesetRepository } from '#repositories/ruleset.repository.js';
 import { gameService } from '#services/game.service.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#repositories/hand.repository.js', () => ({
   handRepository: {
@@ -237,9 +237,9 @@ describe('gameService.updateGame', () => {
   });
 
   it('allows soft-delete via deleted patch', async () => {
-    await expect(
-      gameService.updateGame(1, { deleted: true }),
-    ).resolves.toEqual({ gameId: 1 });
+    await expect(gameService.updateGame(1, { deleted: true })).resolves.toEqual(
+      { gameId: 1 },
+    );
     expect(mockedRepo.updateGameFields).toHaveBeenCalledWith(1, {
       deleted: true,
     });
@@ -356,35 +356,35 @@ describe('gameService.applyNamedRuleset', () => {
   });
 
   it('throws for Custom name', async () => {
-    await expect(gameService.applyNamedRuleset(1, 'Custom')).rejects.toMatchObject(
-      { message: 'Ruleset name cannot be Custom' },
-    );
+    await expect(
+      gameService.applyNamedRuleset(1, 'Custom'),
+    ).rejects.toMatchObject({ message: 'Ruleset name cannot be Custom' });
   });
 
   it('throws when game missing', async () => {
     mockedRepo.existsById.mockResolvedValue(false);
 
-    await expect(gameService.applyNamedRuleset(1, 'IT Ruleset')).rejects.toMatchObject(
-      { message: 'Game not found' },
-    );
+    await expect(
+      gameService.applyNamedRuleset(1, 'IT Ruleset'),
+    ).rejects.toMatchObject({ message: 'Game not found' });
     expect(mockedRulesetRepo.findAvailableIdByName).not.toHaveBeenCalled();
   });
 
   it('throws when ruleset name is unknown', async () => {
     mockedRulesetRepo.findAvailableIdByName.mockResolvedValue(undefined);
 
-    await expect(gameService.applyNamedRuleset(1, 'Missing')).rejects.toMatchObject(
-      { message: 'Ruleset not found' },
-    );
+    await expect(
+      gameService.applyNamedRuleset(1, 'Missing'),
+    ).rejects.toMatchObject({ message: 'Ruleset not found' });
     expect(mockedRepo.updateGameFields).not.toHaveBeenCalled();
   });
 
   it('links game to named ruleset id', async () => {
     mockedRulesetRepo.findAvailableIdByName.mockResolvedValue(9001);
 
-    await expect(gameService.applyNamedRuleset(1, 'IT Ruleset')).resolves.toEqual(
-      { gameId: 1 },
-    );
+    await expect(
+      gameService.applyNamedRuleset(1, 'IT Ruleset'),
+    ).resolves.toEqual({ gameId: 1 });
     expect(mockedRulesetRepo.findAvailableIdByName).toHaveBeenCalledWith(
       'IT Ruleset',
     );
@@ -506,7 +506,10 @@ describe('gameService.getVenueMode', () => {
 
 describe('gameService.getAvailableRulesets', () => {
   it('returns active ruleset names', async () => {
-    mockedRulesetRepo.findAvailableNames.mockResolvedValue(['Club', 'Tournament']);
+    mockedRulesetRepo.findAvailableNames.mockResolvedValue([
+      'Club',
+      'Tournament',
+    ]);
 
     await expect(gameService.getAvailableRulesets(1)).resolves.toEqual({
       names: ['Club', 'Tournament'],
@@ -517,11 +520,11 @@ describe('gameService.getAvailableRulesets', () => {
 
 describe('gameService.setPlayerPenalty', () => {
   it('rejects non-integer penalty', async () => {
-    await expect(
-      gameService.setPlayerPenalty(1, 2, 1.5),
-    ).rejects.toMatchObject({
-      message: 'penalty must be a non-negative integer',
-    });
+    await expect(gameService.setPlayerPenalty(1, 2, 1.5)).rejects.toMatchObject(
+      {
+        message: 'penalty must be a non-negative integer',
+      },
+    );
   });
 
   it('rejects negative penalty', async () => {

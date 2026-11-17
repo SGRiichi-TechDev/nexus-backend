@@ -1,6 +1,6 @@
-import { UnauthorizedError } from '#errors/app-error.js';
 import { timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
+import { UnauthorizedError } from '#errors/app-error.js';
 
 const HEADER = 'x-api-key';
 

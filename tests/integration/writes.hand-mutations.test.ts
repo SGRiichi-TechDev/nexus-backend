@@ -1,5 +1,5 @@
-import { createApp } from '../../src/app.js';
 import { describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -12,7 +12,10 @@ type ScratchContext = {
   casualPlayerId: number;
   gameId: number;
   handId: number;
-  handPlayerBySeat: Map<number, { playerId: number; handPlayerResultId?: number }>;
+  handPlayerBySeat: Map<
+    number,
+    { playerId: number; handPlayerResultId?: number }
+  >;
 };
 
 async function bootstrapScratchHand(): Promise<ScratchContext> {
@@ -92,7 +95,9 @@ describe('write flow: hand mid-game mutations', () => {
       .send({ playerIds: [casualPlayerId] });
     expect(riichiRes.status).toBe(200);
 
-    const inRiichi = await client.get(`/api/v1/hands/${handId}/players-in-riichi`);
+    const inRiichi = await client.get(
+      `/api/v1/hands/${handId}/players-in-riichi`,
+    );
     expect(inRiichi.status).toBe(200);
     expect(inRiichi.body.map((p: { playerId: number }) => p.playerId)).toEqual([
       casualPlayerId,
@@ -233,9 +238,9 @@ describe('write flow: hand mid-game mutations', () => {
       (r: { outcome: string; scoreChange: number }) =>
         r.outcome === 'Draw' && r.scoreChange === -10,
     );
-    expect(notenRows.every((r: { scoreChange: number }) => r.scoreChange === -10)).toBe(
-      true,
-    );
+    expect(
+      notenRows.every((r: { scoreChange: number }) => r.scoreChange === -10),
+    ).toBe(true);
   });
 
   it('insert hand win twice is conflict-safe', async () => {
@@ -333,7 +338,9 @@ describe('write flow: hand mid-game mutations', () => {
     const afterReplace = await client.get(`/api/v1/hands/${handId}`);
     expect(afterReplace.body.riichiDeposits).toBe(1);
 
-    const inRiichi = await client.get(`/api/v1/hands/${handId}/players-in-riichi`);
+    const inRiichi = await client.get(
+      `/api/v1/hands/${handId}/players-in-riichi`,
+    );
     expect(inRiichi.body.map((p: { playerId: number }) => p.playerId)).toEqual([
       p2,
     ]);
@@ -375,7 +382,9 @@ describe('write flow: hand mid-game mutations', () => {
       .post(`/api/v1/hands/${handId}/riichi/apply`)
       .send({ playerIds: [casualPlayerId] });
 
-    await client.patch(`/api/v1/hands/${handId}/outcome`).send({ outcome: 'Ron' });
+    await client
+      .patch(`/api/v1/hands/${handId}/outcome`)
+      .send({ outcome: 'Ron' });
     await client
       .patch(`/api/v1/hands/${handId}/players/${casualPlayerId}`)
       .send({ outcome: 'Ron' });

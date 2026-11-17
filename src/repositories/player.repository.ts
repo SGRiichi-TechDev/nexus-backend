@@ -1,12 +1,8 @@
+import { and, desc, eq, ilike, isNotNull, lt } from 'drizzle-orm';
 import { db } from '#db/index.js';
 import type { ActiveParticipationDto, PlayerInfo } from '#db/types.js';
-import {
-  gameInfo,
-  gameResult,
-  playerInfo,
-} from '#drizzle/schema.js';
+import { gameInfo, gameResult, playerInfo } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
-import { and, desc, eq, ilike, isNotNull, lt } from 'drizzle-orm';
 
 const logger = createLogger('player.repository');
 

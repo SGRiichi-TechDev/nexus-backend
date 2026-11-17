@@ -278,10 +278,7 @@ export const handService = {
     if (!exists) {
       throw new NotFoundError('Hand not found', 'json');
     }
-    const hasOutcome = await handRepository.hasPlayerOutcome(
-      handId,
-      playerId,
-    );
+    const hasOutcome = await handRepository.hasPlayerOutcome(handId, playerId);
     logger.debug({ handId, playerId, hasOutcome }, 'Resolved has outcome');
     return { hasOutcome };
   },
@@ -345,7 +342,11 @@ export const handService = {
     handId: number,
     outcome: string,
   ): Promise<HandMutationResponseDto> => {
-    if (!VALID_HAND_OUTCOMES.has(outcome as (typeof handOutcomeEnum.enumValues)[number])) {
+    if (
+      !VALID_HAND_OUTCOMES.has(
+        outcome as (typeof handOutcomeEnum.enumValues)[number],
+      )
+    ) {
       throw new BadRequestError('Invalid hand outcome', 'json');
     }
     await assertHandExists(handId);
@@ -397,7 +398,10 @@ export const handService = {
     return result;
   },
 
-  setHan: async (handId: number, han: number): Promise<HandMutationResponseDto> => {
+  setHan: async (
+    handId: number,
+    han: number,
+  ): Promise<HandMutationResponseDto> => {
     requireFiniteInteger(han, 'han');
     await assertHandExists(handId);
     const result = await handRepository.upsertHan(handId, han);
@@ -405,7 +409,10 @@ export const handService = {
     return result;
   },
 
-  setFu: async (handId: number, fu: number): Promise<HandMutationResponseDto> => {
+  setFu: async (
+    handId: number,
+    fu: number,
+  ): Promise<HandMutationResponseDto> => {
     requireFiniteInteger(fu, 'fu');
     await assertHandExists(handId);
     const result = await handRepository.upsertFu(handId, fu);
@@ -500,7 +507,10 @@ export const handService = {
     }
 
     let winnerHandValue: number | null = null;
-    if (winnerHandValueUnknown !== null && winnerHandValueUnknown !== undefined) {
+    if (
+      winnerHandValueUnknown !== null &&
+      winnerHandValueUnknown !== undefined
+    ) {
       winnerHandValue = requireFiniteNumber(
         Number(winnerHandValueUnknown),
         'winnerHandValue',

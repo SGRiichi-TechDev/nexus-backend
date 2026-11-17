@@ -1,5 +1,5 @@
-import { createApp } from '../../src/app.js';
-import { db } from '../../src/db/index.js';
+import { count, eq, inArray } from 'drizzle-orm';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   handInfo,
   handPlayerResult,
@@ -8,8 +8,8 @@ import {
   handYaku,
   yakuLookup,
 } from '#drizzle/schema.js';
-import { count, eq, inArray } from 'drizzle-orm';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
+import { db } from '../../src/db/index.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -118,13 +118,13 @@ async function applyRonPath(
   winnerPlayerId: number,
   loserPlayerId: number,
 ): Promise<void> {
-  await client.patch(`/api/v1/hands/${handId}/outcome`).send({ outcome: 'Ron' });
+  await client
+    .patch(`/api/v1/hands/${handId}/outcome`)
+    .send({ outcome: 'Ron' });
   await client
     .patch(`/api/v1/hands/${handId}/players/${winnerPlayerId}`)
     .send({ outcome: 'Ron' });
-  await client.post(
-    `/api/v1/hands/${handId}/players/${loserPlayerId}/deal-in`,
-  );
+  await client.post(`/api/v1/hands/${handId}/players/${loserPlayerId}/deal-in`);
   await client.patch(`/api/v1/hands/${handId}/han`).send({ han: 3 });
   await client.patch(`/api/v1/hands/${handId}/fu`).send({ fu: 30 });
 }
@@ -158,10 +158,7 @@ async function countHandYakuRows(handId: number): Promise<number> {
 }
 
 async function countByHandId(
-  table:
-    | typeof handTransaction
-    | typeof handPlayerResult
-    | typeof handInfo,
+  table: typeof handTransaction | typeof handPlayerResult | typeof handInfo,
   handId: number,
 ): Promise<number> {
   const [row] = await db
@@ -214,9 +211,7 @@ describe('write flow: hand delete and seat clear', () => {
     const { gameId, handId } = await bootstrapScratchGame({ withHand: true });
     expect(handId).toBeDefined();
 
-    const delRes = await client.delete(
-      `/api/v1/games/${gameId}/hands/latest`,
-    );
+    const delRes = await client.delete(`/api/v1/games/${gameId}/hands/latest`);
     expect(delRes.status).toBe(200);
     expect(delRes.body).toEqual({
       gameId,
@@ -245,7 +240,10 @@ describe('write flow: hand delete and seat clear', () => {
     const { gameId, casualPlayerId, handId } = await bootstrapScratchGame({
       withHand: true,
     });
-    const handPlayerBySeat = await loadHandPlayerBySeat(handId!, casualPlayerId);
+    const handPlayerBySeat = await loadHandPlayerBySeat(
+      handId!,
+      casualPlayerId,
+    );
     const loserPlayerId = handPlayerBySeat.get(2)!.playerId;
 
     await applyRonPath(handId!, casualPlayerId, loserPlayerId);
@@ -273,9 +271,7 @@ describe('write flow: hand delete and seat clear', () => {
     expect(await countByHandId(handPlayerResult, handId!)).toBe(4);
     expect(await countByHandId(handInfo, handId!)).toBe(1);
 
-    const delRes = await client.delete(
-      `/api/v1/games/${gameId}/hands/latest`,
-    );
+    const delRes = await client.delete(`/api/v1/games/${gameId}/hands/latest`);
     expect(delRes.status).toBe(200);
     expect(delRes.body.deleted).toBe(true);
     expect(delRes.body.handId).toBe(handId);
@@ -284,10 +280,17 @@ describe('write flow: hand delete and seat clear', () => {
   });
 
   it('removes only the latest hand across repeated deletes', async () => {
-    const { gameId, casualPlayerId, handId: hand1Id } = await bootstrapScratchGame({
+    const {
+      gameId,
+      casualPlayerId,
+      handId: hand1Id,
+    } = await bootstrapScratchGame({
       withHand: true,
     });
-    const handPlayerBySeat = await loadHandPlayerBySeat(hand1Id!, casualPlayerId);
+    const handPlayerBySeat = await loadHandPlayerBySeat(
+      hand1Id!,
+      casualPlayerId,
+    );
     const p2 = handPlayerBySeat.get(2)!.playerId;
     const p3 = handPlayerBySeat.get(3)!.playerId;
     const p4 = handPlayerBySeat.get(4)!.playerId;
@@ -343,9 +346,7 @@ describe('write flow: hand delete and seat clear', () => {
   it('no-ops when the game has no hands', async () => {
     const { gameId } = await bootstrapScratchGame();
 
-    const delRes = await client.delete(
-      `/api/v1/games/${gameId}/hands/latest`,
-    );
+    const delRes = await client.delete(`/api/v1/games/${gameId}/hands/latest`);
     expect(delRes.status).toBe(200);
     expect(delRes.body).toEqual({
       gameId,
@@ -360,13 +361,13 @@ describe('write flow: hand delete and seat clear', () => {
   it('rejects delete latest on completed games', async () => {
     const { gameId } = await bootstrapScratchGame();
 
-    await client.patch(`/api/v1/games/${gameId}`).send({ finalScoreOnly: true });
+    await client
+      .patch(`/api/v1/games/${gameId}`)
+      .send({ finalScoreOnly: true });
     const complete = await client.post(`/api/v1/games/${gameId}/complete`);
     expect(complete.status).toBe(200);
 
-    const delRes = await client.delete(
-      `/api/v1/games/${gameId}/hands/latest`,
-    );
+    const delRes = await client.delete(`/api/v1/games/${gameId}/hands/latest`);
     expect(delRes.status).toBe(400);
     expect(delRes.body).toEqual({ error: 'Game is already completed' });
   });

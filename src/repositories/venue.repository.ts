@@ -1,8 +1,8 @@
+import { and, eq, ilike } from 'drizzle-orm';
 import { db } from '#db/index.js';
 import type { VenueIdDto, VenueNameDto } from '#db/types.js';
 import { venue } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
-import { and, eq, ilike } from 'drizzle-orm';
 
 const logger = createLogger('venue.repository');
 

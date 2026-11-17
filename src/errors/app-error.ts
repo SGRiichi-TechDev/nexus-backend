@@ -4,11 +4,7 @@ export class AppError extends Error {
   readonly status: number;
   readonly format: ErrorFormat;
 
-  constructor(
-    message: string,
-    status: number,
-    format: ErrorFormat = 'json',
-  ) {
+  constructor(message: string, status: number, format: ErrorFormat = 'json') {
     super(message);
     this.name = 'AppError';
     this.status = status;
