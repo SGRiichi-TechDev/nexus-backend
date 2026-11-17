@@ -7,11 +7,13 @@ import express, {
 import { isAppError } from '#errors/app-error.js';
 import { requireApiKey } from '#middleware/api-key.middleware.js';
 import { requestLogger } from '#middleware/request-logger.js';
+import { requestTiming } from '#middleware/request-timing.middleware.js';
 import apiRouter from '#routes/api-router.js';
 
 export function createApp(): Express {
   const app: Express = express();
 
+  app.use(requestTiming);
   app.use(requestLogger);
   app.use(express.json());
   app.use('/api/v1', requireApiKey, apiRouter);

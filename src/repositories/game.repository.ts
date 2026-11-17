@@ -34,13 +34,14 @@ import {
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
 import { computeFinalPosition } from '#repositories/position.util.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('game.repository');
 
 // One riichi stick = 1000 points = 10 in hundreds notation (scores stored in hundreds).
 const RIICHI_STICK_VALUE = 10;
 
-export const gameRepository = {
+export const gameRepository = withDbTiming('game', {
   allocateNextGameId: async (): Promise<number> => {
     const start = performance.now();
     const result = await db
@@ -811,4 +812,4 @@ export const gameRepository = {
     );
     return deleted;
   },
-};
+});
