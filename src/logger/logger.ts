@@ -10,6 +10,7 @@ export const logger = pino({
     'DATABASE_URL',
     'req.headers.authorization',
     'req.headers.cookie',
+    'req.headers["x-api-key"]',
   ],
   ...(isDevelopment
     ? {
