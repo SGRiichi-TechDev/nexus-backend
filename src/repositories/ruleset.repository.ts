@@ -3,6 +3,7 @@ import { db } from '#db/index.js';
 import type { UpdateRulesetPatch } from '#db/types.js';
 import { gameInfo, rulesetInfo } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('ruleset.repository');
 
@@ -32,7 +33,7 @@ export const CUSTOM_RULESET_DEFAULTS = {
   multipleRon: false,
 } as const;
 
-export const rulesetRepository = {
+export const rulesetRepository = withDbTiming('ruleset', {
   findAvailableNames: async (): Promise<string[]> => {
     const start = performance.now();
     const now = new Date();
@@ -192,4 +193,4 @@ export const rulesetRepository = {
       'ruleset.updateCustomRulesetForGame',
     );
   },
-};
+});

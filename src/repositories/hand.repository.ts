@@ -36,6 +36,7 @@ import {
 } from '#drizzle/schema.js';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('hand.repository');
 
@@ -95,7 +96,7 @@ const allocateNextHandPlayerResultIdBase = async (
 
 export type HandPlayerFlag = 'riichi' | 'tenpai' | 'chombo';
 
-export const handRepository = {
+export const handRepository = withDbTiming('hand', {
   existsById: async (handId: number): Promise<boolean> => {
     const start = performance.now();
     const result = await db
@@ -1285,7 +1286,7 @@ export const handRepository = {
     );
     return { handId };
   },
-};
+});
 
 const upsertWinnerHandWin = async (
   handId: number,

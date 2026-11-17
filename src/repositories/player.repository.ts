@@ -3,12 +3,13 @@ import { db } from '#db/index.js';
 import type { ActiveParticipationDto, PlayerInfo } from '#db/types.js';
 import { gameInfo, gameResult, playerInfo } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('player.repository');
 
 const BOT_PLAYER_ID_CEILING = 100_000;
 
-export const playerRepository = {
+export const playerRepository = withDbTiming('player', {
   insert: async ({
     displayName,
   }: {
@@ -190,4 +191,4 @@ export const playerRepository = {
     );
     return { isParticipant, isRecorder, gameId };
   },
-};
+});

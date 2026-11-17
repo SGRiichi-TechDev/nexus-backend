@@ -3,10 +3,11 @@ import { db } from '#db/index.js';
 import type { ModeIdDto, ModeNameDto } from '#db/types.js';
 import { gameInfo, mode } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('mode.repository');
 
-export const modeRepository = {
+export const modeRepository = withDbTiming('mode', {
   findActiveByVenueId: async (venueId: number): Promise<ModeNameDto[]> => {
     const start = performance.now();
     const rows = await db
@@ -48,4 +49,4 @@ export const modeRepository = {
     );
     return result[0];
   },
-};
+});

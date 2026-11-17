@@ -3,10 +3,11 @@ import { db } from '#db/index.js';
 import type { VenueIdDto, VenueNameDto } from '#db/types.js';
 import { venue } from '#drizzle/schema.js';
 import { createLogger } from '#logger/logger.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('venue.repository');
 
-export const venueRepository = {
+export const venueRepository = withDbTiming('venue', {
   findAllActive: async (): Promise<VenueNameDto[]> => {
     const start = performance.now();
     const rows = await db
@@ -42,4 +43,4 @@ export const venueRepository = {
     );
     return result[0];
   },
-};
+});
