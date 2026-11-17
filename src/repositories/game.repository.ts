@@ -33,8 +33,8 @@ import {
 } from '#drizzle/schema.js';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
-import { withDbTiming } from '#repositories/timing.util.js';
 import { computeFinalPosition } from '#repositories/position.util.js';
+import { withDbTiming } from '#repositories/timing.util.js';
 
 const logger = createLogger('game.repository');
 

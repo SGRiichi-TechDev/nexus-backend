@@ -45,8 +45,7 @@ const readThreshold = (envName: string, fallback: number): number => {
 };
 
 /** Repository calls slower than this are logged at warn. */
-export const slowDbCallMs = (): number =>
-  readThreshold('SLOW_DB_CALL_MS', 200);
+export const slowDbCallMs = (): number => readThreshold('SLOW_DB_CALL_MS', 200);
 
 /** Requests slower than this are flagged `slow: true` in the request log. */
 export const slowRequestMs = (): number =>
