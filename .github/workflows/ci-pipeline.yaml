@@ -13,8 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: Run Tests
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -28,5 +28,19 @@ jobs:
         run: npm ci
       - name: Run Biome check
         run: npx biome ci .
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install npm dependencies
+        run: npm ci
       - name: Run npm test
         run: npm test
