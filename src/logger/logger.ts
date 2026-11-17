@@ -5,7 +5,12 @@ const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
 export const logger = pino({
   level: isTest ? 'silent' : isDevelopment ? 'trace' : 'info',
-  redact: ['DATABASE_URL', 'req.headers.authorization', 'req.headers.cookie'],
+  redact: [
+    'DATABASE_URL',
+    'req.headers.authorization',
+    'req.headers.cookie',
+    'req.headers["x-api-key"]',
+  ],
   ...(isDevelopment
     ? {
         transport: {
