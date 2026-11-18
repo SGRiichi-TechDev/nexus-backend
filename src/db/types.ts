@@ -37,7 +37,7 @@ export type RulesetInfoSelect = Pick<
   | 'multipleRon'
 >;
 
-/** Base projection returned by findCurrentIncompleteByRecorder */
+/** Base projection of the current game, embedded in SessionGameDto */
 export type CurrentGameDto = {
   gameId: InferSelectModel<typeof gameInfo>['gameId'];
   status: InferSelectModel<typeof gameInfo>['status'];

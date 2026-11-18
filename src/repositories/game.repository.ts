@@ -11,7 +11,6 @@ import {
 } from 'drizzle-orm';
 import { db } from '#db/index.js';
 import type {
-  CurrentGameDto,
   FinalScoreDto,
   HandIdDto,
   LastHandForNextDto,
@@ -146,47 +145,6 @@ export const gameRepository = withDbTiming('game', {
       'game.findVenueIdByGameId',
     );
     return result[0]?.venueId ?? undefined;
-  },
-
-  findCurrentIncompleteByRecorder: async (
-    playerId: number,
-  ): Promise<CurrentGameDto | undefined> => {
-    const start = performance.now();
-    const currentGame = await db
-      .select({
-        gameId: gameInfo.gameId,
-        status: gameInfo.status,
-        handId: handInfo.handId,
-        handOutcome: handInfo.handOutcome,
-        isRecorded: gameInfo.isRecorded,
-        han: handWin.han,
-        finalScoreOnly: gameInfo.finalScoreOnly,
-        multipleRon: rulesetInfo.multipleRon,
-      })
-      .from(gameInfo)
-      .leftJoin(handInfo, eq(gameInfo.gameId, handInfo.gameId))
-      .leftJoin(handWin, eq(handInfo.handId, handWin.handId))
-      .leftJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
-      .where(
-        and(
-          eq(gameInfo.recordedByPid, playerId),
-          eq(gameInfo.completed, false),
-          eq(gameInfo.deleted, false),
-        ),
-      )
-      .orderBy(desc(handInfo.handId))
-      .limit(1);
-
-    logger.debug(
-      {
-        query: 'findCurrentIncompleteByRecorder',
-        playerId,
-        rowCount: currentGame.length,
-        durationMs: Math.round(performance.now() - start),
-      },
-      'game.findCurrentIncompleteByRecorder',
-    );
-    return currentGame[0];
   },
 
   countHandWinsByHandId: async (handId: number): Promise<number> => {
