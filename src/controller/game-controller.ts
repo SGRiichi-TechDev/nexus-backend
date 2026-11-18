@@ -1,18 +1,24 @@
 import type { Request, Response } from 'express';
+import { sendWithSession } from '#controller/session-response.js';
 import type { UpdateGamePatch } from '#db/types.js';
 import { gameService } from '#services/game.service.js';
+import { sessionService } from '#services/session.service.js';
 
 const gameController = {
   async createGame(req: Request, res: Response) {
     const telegramId = Number(req.body?.telegramId);
     const result = await gameService.createDraftGame(telegramId);
-    res.status(201).json(result);
+    await sendWithSession(req, res, 201, result, () =>
+      sessionService.getByGameId(result.gameId),
+    );
   },
 
   async createFirstHand(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const result = await gameService.createFirstHand(gameId);
-    res.status(201).json(result);
+    await sendWithSession(req, res, 201, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 
   async addGamePlayer(req: Request, res: Response) {
@@ -24,7 +30,9 @@ const gameController = {
       startingSeat,
       playerId,
     );
-    res.status(201).json(result);
+    await sendWithSession(req, res, 201, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 
   async updateGame(req: Request, res: Response) {
@@ -47,7 +55,9 @@ const gameController = {
       patch.finalScoreOnly = Boolean(body.finalScoreOnly);
     }
     const result = await gameService.updateGame(gameId, patch);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 
   async getPlayersByGameId(req: Request, res: Response) {
@@ -186,19 +196,25 @@ const gameController = {
   async completeGame(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const result = await gameService.completeGame(gameId);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 
   async deleteLatestHand(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const result = await gameService.deleteLatestHand(gameId);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 
   async clearSeats(req: Request, res: Response) {
     const gameId = Number(req.params.id);
     const result = await gameService.clearSeats(gameId);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByGameId(gameId),
+    );
   },
 };
 

@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import handController from '#controller/hand-controller.js';
 import { handService } from '#services/hand.service.js';
+import { sessionService } from '#services/session.service.js';
 
 vi.mock('#services/hand.service.js', () => ({
   handService: {
@@ -25,7 +26,12 @@ vi.mock('#services/hand.service.js', () => ({
   },
 }));
 
+vi.mock('#services/session.service.js', () => ({
+  sessionService: { getByGameId: vi.fn(), getByHandId: vi.fn() },
+}));
+
 const mockedService = vi.mocked(handService);
+const mockedSession = vi.mocked(sessionService);
 
 const mockResponse = () => {
   const res = {} as Response;
@@ -273,5 +279,25 @@ describe('handController mid-game mutations', () => {
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ handId: 18, winnerPlayerId: 3 });
+  });
+});
+
+describe('include=session on writes', () => {
+  it('adds the refreshed session to setHan responses', async () => {
+    const session = { gameId: 7, handId: 3, han: 4 } as never;
+    mockedService.setHan.mockResolvedValue({ handId: 3 } as never);
+    mockedSession.getByHandId.mockResolvedValue(session);
+
+    const req = {
+      params: { id: '3' },
+      body: { han: 4 },
+      query: { include: 'session' },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await handController.setHan(req, res);
+
+    expect(mockedSession.getByHandId).toHaveBeenCalledWith(3);
+    expect(res.json).toHaveBeenCalledWith({ handId: 3, session });
   });
 });

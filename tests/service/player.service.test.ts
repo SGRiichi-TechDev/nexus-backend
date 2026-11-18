@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestError } from '#errors/app-error.js';
-import { gameRepository } from '#repositories/game.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
+import { sessionRepository } from '#repositories/session.repository.js';
 import { playerService } from '#services/player.service.js';
 
 vi.mock('#repositories/player.repository.js', () => ({
@@ -16,16 +16,14 @@ vi.mock('#repositories/player.repository.js', () => ({
   },
 }));
 
-vi.mock('#repositories/game.repository.js', () => ({
-  gameRepository: {
-    findCurrentIncompleteByRecorder: vi.fn(),
-    findPlayersOrderedBySeat: vi.fn(),
-    countHandWinsByHandId: vi.fn(),
+vi.mock('#repositories/session.repository.js', () => ({
+  sessionRepository: {
+    findByTelegramId: vi.fn(),
   },
 }));
 
 const mockedPlayerRepo = vi.mocked(playerRepository);
-const mockedGameRepo = vi.mocked(gameRepository);
+const mockedSessionRepo = vi.mocked(sessionRepository);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -92,11 +90,11 @@ describe('playerService.getCurrentGame', () => {
     await expect(playerService.getCurrentGame(0)).rejects.toBeInstanceOf(
       BadRequestError,
     );
-    expect(mockedPlayerRepo.findByTelegramId).not.toHaveBeenCalled();
+    expect(mockedSessionRepo.findByTelegramId).not.toHaveBeenCalled();
   });
 
   it('throws NotFoundError when player missing', async () => {
-    mockedPlayerRepo.findByTelegramId.mockResolvedValue(undefined);
+    mockedSessionRepo.findByTelegramId.mockResolvedValue({ found: false });
 
     await expect(playerService.getCurrentGame(12345)).rejects.toMatchObject({
       message: 'Player not found',
@@ -104,16 +102,16 @@ describe('playerService.getCurrentGame', () => {
   });
 
   it('returns null when no current game', async () => {
-    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
-      playerId: 1,
-    } as never);
-    mockedGameRepo.findCurrentIncompleteByRecorder.mockResolvedValue(undefined);
+    mockedSessionRepo.findByTelegramId.mockResolvedValue({
+      found: true,
+      session: null,
+    });
 
     await expect(playerService.getCurrentGame(12345)).resolves.toBeNull();
   });
 
-  it('returns current game on success', async () => {
-    const game = {
+  it('returns the session from a single repository call', async () => {
+    const session = {
       gameId: 10,
       status: 'draft' as const,
       handId: 1,
@@ -122,23 +120,18 @@ describe('playerService.getCurrentGame', () => {
       han: null,
       finalScoreOnly: false,
       multipleRon: false,
-    };
-    mockedPlayerRepo.findByTelegramId.mockResolvedValue({
-      playerId: 1,
-    } as never);
-    mockedGameRepo.findCurrentIncompleteByRecorder.mockResolvedValue(game);
-    mockedGameRepo.findPlayersOrderedBySeat.mockResolvedValue([]);
-
-    await expect(playerService.getCurrentGame(12345)).resolves.toEqual({
-      ...game,
-      multipleRon: false,
       isRecordingMultipleRon: false,
       players: [],
+    };
+    mockedSessionRepo.findByTelegramId.mockResolvedValue({
+      found: true,
+      session,
     });
-    expect(mockedGameRepo.findCurrentIncompleteByRecorder).toHaveBeenCalledWith(
-      1,
-    );
-    expect(mockedGameRepo.findPlayersOrderedBySeat).toHaveBeenCalledWith(10);
+
+    await expect(playerService.getCurrentGame(12345)).resolves.toEqual(session);
+    expect(mockedSessionRepo.findByTelegramId).toHaveBeenCalledTimes(1);
+    expect(mockedSessionRepo.findByTelegramId).toHaveBeenCalledWith(12345);
+    expect(mockedPlayerRepo.findByTelegramId).not.toHaveBeenCalled();
   });
 });
 

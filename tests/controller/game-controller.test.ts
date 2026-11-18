@@ -4,6 +4,7 @@ import gameController from '#controller/game-controller.js';
 import type { playerStatusEnum } from '#drizzle/schema.js';
 import { NotFoundError } from '#errors/app-error.js';
 import { gameService } from '#services/game.service.js';
+import { sessionService } from '#services/session.service.js';
 
 type Status = (typeof playerStatusEnum.enumValues)[number];
 
@@ -30,7 +31,12 @@ vi.mock('#services/game.service.js', () => ({
   },
 }));
 
+vi.mock('#services/session.service.js', () => ({
+  sessionService: { getByGameId: vi.fn(), getByHandId: vi.fn() },
+}));
+
 const mockedService = vi.mocked(gameService);
+const mockedSession = vi.mocked(sessionService);
 
 const mockResponse = () => {
   const res = {} as Response;
@@ -298,6 +304,54 @@ describe('clearSeats', () => {
     expect(mockedService.clearSeats).toHaveBeenCalledWith(7);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ gameId: 7, deleted: 4 });
+  });
+});
+
+describe('include=session on writes', () => {
+  it('adds the refreshed session to the response body', async () => {
+    const session = { gameId: 7, handId: 3 } as never;
+    mockedService.clearSeats.mockResolvedValue({ gameId: 7, deleted: 4 });
+    mockedSession.getByGameId.mockResolvedValue(session);
+
+    const req = {
+      params: { id: '7' },
+      query: { include: 'session' },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.clearSeats(req, res);
+
+    expect(mockedSession.getByGameId).toHaveBeenCalledWith(7);
+    expect(res.json).toHaveBeenCalledWith({
+      gameId: 7,
+      deleted: 4,
+      session,
+    });
+  });
+
+  it('returns a null session once the game is gone', async () => {
+    mockedService.updateGame.mockResolvedValue({ gameId: 7 });
+    mockedSession.getByGameId.mockResolvedValue(null);
+
+    const req = {
+      params: { id: '7' },
+      body: { deleted: true },
+      query: { include: 'session' },
+    } as unknown as Request;
+    const res = mockResponse();
+
+    await gameController.updateGame(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ gameId: 7, session: null });
+  });
+
+  it('does not query the session unless requested', async () => {
+    mockedService.clearSeats.mockResolvedValue({ gameId: 7, deleted: 4 });
+
+    const req = { params: { id: '7' }, query: {} } as unknown as Request;
+    await gameController.clearSeats(req, mockResponse());
+
+    expect(mockedSession.getByGameId).not.toHaveBeenCalled();
   });
 });
 
