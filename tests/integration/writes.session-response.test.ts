@@ -29,8 +29,9 @@ describe('write endpoints with ?include=session', () => {
       .send({ startingSeat: 1, playerId: FIXTURES.players[0].playerId });
     expect(seat.status).toBe(201);
     expect(seat.body.session.gameId).toBe(gameId);
-    expect(seat.body.session.players.map((p: { playerId: number }) => p.playerId))
-      .toEqual([FIXTURES.players[0].playerId]);
+    expect(
+      seat.body.session.players.map((p: { playerId: number }) => p.playerId),
+    ).toEqual([FIXTURES.players[0].playerId]);
 
     const updated = await client
       .patch(`/api/v1/games/${gameId}`)

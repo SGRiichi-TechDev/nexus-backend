@@ -1,8 +1,8 @@
 import type { Request, Response } from 'express';
 import { sendWithSession } from '#controller/session-response.js';
 import type { Wind } from '#db/types.js';
-import { sessionService } from '#services/session.service.js';
 import { handService } from '#services/hand.service.js';
+import { sessionService } from '#services/session.service.js';
 
 const handController = {
   async createNextHand(req: Request, res: Response) {

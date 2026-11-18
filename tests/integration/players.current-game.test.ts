@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { createApp } from '../../src/app.js';
 import {
   createRequestTiming,
   runWithRequestTiming,
 } from '../../src/logger/request-timing.js';
 import { playerService } from '../../src/services/player.service.js';
-import { createApp } from '../../src/app.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
