@@ -5,8 +5,8 @@ import type {
 } from '#db/types.js';
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
-import { gameRepository } from '#repositories/game.repository.js';
 import { playerRepository } from '#repositories/player.repository.js';
+import { sessionRepository } from '#repositories/session.repository.js';
 
 const logger = createLogger('player.service');
 
@@ -69,46 +69,20 @@ export const playerService = {
       throw new BadRequestError('Telegram ID is required', 'text');
     }
 
-    const player = await playerRepository.findByTelegramId(telegramId);
-    if (player === undefined) {
+    const lookup = await sessionRepository.findByTelegramId(telegramId);
+    if (!lookup.found) {
       throw new NotFoundError('Player not found', 'text');
     }
-
-    const currentGame = await gameRepository.findCurrentIncompleteByRecorder(
-      player.playerId,
-    );
-    if (currentGame === undefined) {
-      logger.debug(
-        { playerId: player.playerId, telegramId },
-        'No current game for player',
-      );
+    if (lookup.session === null) {
+      logger.debug({ telegramId }, 'No current game for player');
       return null;
     }
 
-    const players = await gameRepository.findPlayersOrderedBySeat(
-      currentGame.gameId,
-    );
-
-    // TODO(multiple-ron): Temporarily disabled for Akako. Restore detection from
-    // hand state once multiple-ron branch semantics are defined for hand_win.
-    const isRecordingMultipleRon = false;
-
     logger.debug(
-      {
-        playerId: player.playerId,
-        telegramId,
-        gameId: currentGame.gameId,
-      },
+      { telegramId, gameId: lookup.session.gameId },
       'Resolved current game',
     );
-
-    return {
-      ...currentGame,
-      // TODO(multiple-ron): Also force multipleRon false for Akako until re-enabled
-      multipleRon: false,
-      isRecordingMultipleRon,
-      players,
-    };
+    return lookup.session;
   },
 
   getActiveParticipation: async (

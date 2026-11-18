@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.js';
+import {
+  createRequestTiming,
+  runWithRequestTiming,
+} from '../../src/logger/request-timing.js';
+import { playerService } from '../../src/services/player.service.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -47,5 +52,18 @@ describe('GET /api/v1/players/current-game', () => {
     expect(res.body.gameId).toBe(FIXTURES.emptyGameId);
     expect(res.body.handId).toBeNull();
     expect(res.body.players).toEqual([]);
+  });
+});
+
+describe('playerService.getCurrentGame', () => {
+  it('resolves the session in a single DB call', async () => {
+    const timing = createRequestTiming();
+    const session = await runWithRequestTiming(timing, () =>
+      playerService.getCurrentGame(FIXTURES.recorderTelegramId),
+    );
+
+    expect(session?.gameId).toBe(FIXTURES.gameId);
+    expect(session?.players).toHaveLength(4);
+    expect(timing.dbCalls).toBe(1);
   });
 });

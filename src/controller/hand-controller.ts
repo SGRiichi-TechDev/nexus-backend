@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
+import { sendWithSession } from '#controller/session-response.js';
 import type { Wind } from '#db/types.js';
 import { handService } from '#services/hand.service.js';
+import { sessionService } from '#services/session.service.js';
 
 const handController = {
   async createNextHand(req: Request, res: Response) {
@@ -12,7 +14,9 @@ const handController = {
       roundNum,
       honba,
     });
-    res.status(201).json(result);
+    await sendWithSession(req, res, 201, result, () =>
+      sessionService.getByHandId(result.handId),
+    );
   },
 
   async getHandDetails(req: Request, res: Response) {
@@ -84,7 +88,9 @@ const handController = {
       handId,
       String(req.body?.outcome ?? ''),
     );
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByHandId(handId),
+    );
   },
 
   async setPlayerOutcome(req: Request, res: Response) {
@@ -109,7 +115,9 @@ const handController = {
     const handId = Number(req.params.id);
     const han = Number(req.body?.han);
     const result = await handService.setHan(handId, han);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByHandId(handId),
+    );
   },
 
   async setFu(req: Request, res: Response) {
@@ -164,14 +172,18 @@ const handController = {
   async confirmHand(req: Request, res: Response) {
     const handId = Number(req.params.id);
     const result = await handService.confirmHand(handId);
-    res.status(200).json(result);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByHandId(handId),
+    );
   },
 
   async createHandWin(req: Request, res: Response) {
     const handId = Number(req.params.id);
     const winnerPlayerId = Number(req.body?.winnerPlayerId);
     const result = await handService.createHandWin(handId, winnerPlayerId);
-    res.status(201).json(result);
+    await sendWithSession(req, res, 201, result, () =>
+      sessionService.getByHandId(handId),
+    );
   },
 };
 
