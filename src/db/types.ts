@@ -180,6 +180,9 @@ export type HandResultForScoreCalc = {
   outcome: IndividualOutcome | null;
   endScore: number | null;
   scoreChange: number;
+  tenpai: boolean;
+  riichi: boolean;
+  riichiCollected: number;
 };
 
 export type ScoreCalcInputDto = {
@@ -188,6 +191,7 @@ export type ScoreCalcInputDto = {
   han: number | null;
   fu: number | null;
   honba: number;
+  handOutcome: InferSelectModel<typeof handInfo>['handOutcome'];
   riichiDeposits: number;
   isRecordingMultipleRon: boolean;
   kiriageMangan: boolean;
@@ -322,6 +326,8 @@ export type ScoreChangeUpdateDto = {
   handPlayerResultId: number;
   scoreChange: number;
   winner: boolean;
+  /** Also set the player's individual outcome (draws). */
+  outcome?: IndividualOutcome;
 };
 
 export type ApplyScoreChangesDto = {
@@ -336,4 +342,12 @@ export type CreateHandWinDto = {
 export type HandWinCreateResponseDto = {
   handId: number;
   winnerPlayerId: number;
+};
+
+export type SaveHandResponseDto = {
+  handId: number;
+  /** Summary of the hand that was just saved. */
+  hand: HandDetailsDto;
+  /** Everything needed to create the next hand; null if none can be derived. */
+  lastForNext: LastHandForNextDto | null;
 };

@@ -30,12 +30,18 @@ vi.mock('#repositories/hand.repository.js', () => ({
     applyScoreChanges: vi.fn(),
     confirmHand: vi.fn(),
     insertHandWin: vi.fn(),
+    saveHand: vi.fn(),
   },
+}));
+
+vi.mock('#services/reference.service.js', () => ({
+  referenceService: { getScoreLookupCached: vi.fn() },
 }));
 
 vi.mock('#repositories/game.repository.js', () => ({
   gameRepository: {
     findRulesetByGameId: vi.fn(),
+    findLastHandForNextInsert: vi.fn(),
   },
 }));
 
@@ -414,5 +420,32 @@ describe('computeChomboScoreByPlayer', () => {
     expect(map.get(2)).toBe(-200);
     expect(map.get(3)).toBe(200);
     expect(map.get(4)).toBe(200);
+  });
+});
+
+describe('handService.saveHand', () => {
+  it('saves in one repository call and returns the summary plus next-hand data', async () => {
+    const { referenceService } = await import('#services/reference.service.js');
+    vi.mocked(referenceService.getScoreLookupCached).mockResolvedValue([]);
+    mockedRepo.saveHand.mockResolvedValue({ handId: 7, gameId: 3 });
+    const hand = { handNum: 1 } as never;
+    mockedRepo.findHandDetails.mockResolvedValue(hand);
+    const next = { handId: 7, honba: 1 } as never;
+    mockedGameRepo.findLastHandForNextInsert.mockResolvedValue(next);
+
+    const result = await handService.saveHand(7);
+
+    expect(result).toEqual({ handId: 7, hand, lastForNext: next });
+    expect(mockedRepo.saveHand).toHaveBeenCalledTimes(1);
+    expect(mockedGameRepo.findLastHandForNextInsert).toHaveBeenCalledWith(3);
+  });
+
+  it('throws NotFoundError when the hand summary cannot be loaded', async () => {
+    const { referenceService } = await import('#services/reference.service.js');
+    vi.mocked(referenceService.getScoreLookupCached).mockResolvedValue([]);
+    mockedRepo.saveHand.mockResolvedValue({ handId: 7, gameId: 3 });
+    mockedRepo.findHandDetails.mockResolvedValue(undefined);
+    mockedGameRepo.findLastHandForNextInsert.mockResolvedValue(undefined);
+    await expect(handService.saveHand(7)).rejects.toThrow(NotFoundError);
   });
 });
