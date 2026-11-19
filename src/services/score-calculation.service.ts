@@ -2,10 +2,10 @@ import type {
   HandResultForScoreCalc,
   IndividualOutcome,
   ScoreCalcInputDto,
+  ScoreChangeUpdateDto,
   ScoreLookupRow,
 } from '#db/types.js';
 import { BadRequestError } from '#errors/app-error.js';
-import type { ScoreChangeUpdate } from '#repositories/hand.repository.js';
 
 /**
  * Server-side hand score calculation. Scores are in hundreds of points
@@ -22,7 +22,7 @@ const DRAW_POOL = 30;
 const MANGAN_HAN = 5;
 
 export type ComputedScoreChanges = {
-  updates: ScoreChangeUpdate[];
+  updates: ScoreChangeUpdateDto[];
   /** The winner's total score change (incl. honba and riichi sticks); null when nobody won by Ron/Tsumo. */
   winnerHandValue: number | null;
 };

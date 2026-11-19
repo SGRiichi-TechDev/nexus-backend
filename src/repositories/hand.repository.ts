@@ -21,6 +21,7 @@ import type {
   MultipleRonStatusDto,
   PlayerInfo,
   ScoreCalcInputDto,
+  ScoreChangeUpdateDto,
   Wind,
 } from '#db/types.js';
 import {
@@ -98,18 +99,10 @@ type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type SavedHandDto = { handId: number; gameId: number };
 
-export type ScoreChangeUpdate = {
-  handPlayerResultId: number;
-  scoreChange: number;
-  winner: boolean;
-  /** Also set the player's individual outcome (draws). */
-  outcome?: IndividualOutcome;
-};
-
 const applyScoreChangesTx = async (
   tx: DbTx,
   handId: number,
-  updates: ScoreChangeUpdate[],
+  updates: ScoreChangeUpdateDto[],
   winnerHandValue: number | null,
 ): Promise<void> => {
   for (const update of updates) {
@@ -503,7 +496,7 @@ export const handRepository = withDbTiming('hand', {
   saveHand: async (
     handId: number,
     compute: (input: ScoreCalcInputDto) => {
-      updates: ScoreChangeUpdate[];
+      updates: ScoreChangeUpdateDto[];
       winnerHandValue: number | null;
     },
   ): Promise<SavedHandDto> => {
@@ -1221,7 +1214,7 @@ export const handRepository = withDbTiming('hand', {
 
   applyScoreChanges: async (
     handId: number,
-    updates: ScoreChangeUpdate[],
+    updates: ScoreChangeUpdateDto[],
     winnerHandValue: number | null,
   ): Promise<HandMutationResponseDto> => {
     const start = performance.now();

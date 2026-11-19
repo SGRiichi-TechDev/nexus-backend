@@ -326,6 +326,8 @@ export type ScoreChangeUpdateDto = {
   handPlayerResultId: number;
   scoreChange: number;
   winner: boolean;
+  /** Also set the player's individual outcome (draws). */
+  outcome?: IndividualOutcome;
 };
 
 export type ApplyScoreChangesDto = {
