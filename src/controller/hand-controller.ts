@@ -177,6 +177,14 @@ const handController = {
     );
   },
 
+  async saveHand(req: Request, res: Response) {
+    const handId = Number(req.params.id);
+    const result = await handService.saveHand(handId);
+    await sendWithSession(req, res, 200, result, () =>
+      sessionService.getByHandId(handId),
+    );
+  },
+
   async createHandWin(req: Request, res: Response) {
     const handId = Number(req.params.id);
     const winnerPlayerId = Number(req.body?.winnerPlayerId);

@@ -94,6 +94,228 @@ const allocateNextHandPlayerResultIdBase = async (
   return result[0]?.maxId ?? 0;
 };
 
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export type SavedHandDto = { handId: number; gameId: number };
+
+export type ScoreChangeUpdate = {
+  handPlayerResultId: number;
+  scoreChange: number;
+  winner: boolean;
+  /** Also set the player's individual outcome (draws). */
+  outcome?: IndividualOutcome;
+};
+
+const applyScoreChangesTx = async (
+  tx: DbTx,
+  handId: number,
+  updates: ScoreChangeUpdate[],
+  winnerHandValue: number | null,
+): Promise<void> => {
+  for (const update of updates) {
+    const row = await tx
+      .select({
+        playerId: handPlayerResult.playerId,
+        outcome: handPlayerResult.outcome,
+        riichi: handPlayerResult.riichi,
+      })
+      .from(handPlayerResult)
+      .where(
+        and(
+          eq(handPlayerResult.handId, handId),
+          eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
+        ),
+      )
+      .limit(1);
+    const current = row[0];
+    if (!current) {
+      throw new NotFoundError('Hand player result not found', 'json');
+    }
+
+    // score_change SET = (riichi ? -10 : 0) + payload delta
+    await tx
+      .update(handPlayerResult)
+      .set({
+        scoreChange: sql`(case when ${handPlayerResult.riichi} then -10 else 0 end) + ${update.scoreChange}`,
+        ...(update.outcome ? { outcome: update.outcome } : {}),
+      })
+      .where(
+        eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
+      );
+
+    if (update.winner && current.outcome) {
+      await tx
+        .insert(handWin)
+        .values({
+          handId,
+          winnerPlayerId: current.playerId,
+          han: null,
+          fu: null,
+          handValue: update.scoreChange,
+          winType: mapWinType(current.outcome),
+        })
+        .onConflictDoUpdate({
+          target: [handWin.handId, handWin.winnerPlayerId],
+          set: { handValue: update.scoreChange },
+        });
+    }
+  }
+
+  if (winnerHandValue !== null) {
+    await tx
+      .update(handPlayerResult)
+      .set({ riichiCollected: 0 })
+      .where(eq(handPlayerResult.handId, handId));
+
+    // Multiple Ron is not supported by the bot flow; head-bump winner selection is out of scope.
+    const winnerUpdate = updates.find((u) => u.winner);
+    if (winnerUpdate) {
+      const [potStartRow, depositedRow] = await Promise.all([
+        tx
+          .select({ riichiPotStart: handInfo.riichiPotStart })
+          .from(handInfo)
+          .where(eq(handInfo.handId, handId))
+          .limit(1),
+        tx
+          .select({
+            deposited: sql<number>`coalesce(sum(${handPlayerResult.riichiDeposited}), 0)`,
+          })
+          .from(handPlayerResult)
+          .where(eq(handPlayerResult.handId, handId)),
+      ]);
+      const fullPot =
+        (potStartRow[0]?.riichiPotStart ?? 0) +
+        Number(depositedRow[0]?.deposited ?? 0);
+      await tx
+        .update(handPlayerResult)
+        .set({ riichiCollected: fullPot })
+        .where(
+          eq(
+            handPlayerResult.handPlayerResultId,
+            winnerUpdate.handPlayerResultId,
+          ),
+        );
+    }
+
+    await tx
+      .update(handWin)
+      .set({ handValue: winnerHandValue })
+      .where(eq(handWin.handId, handId));
+  }
+};
+
+const confirmHandTx = async (tx: DbTx, handId: number): Promise<void> => {
+  await tx
+    .update(handInfo)
+    .set({ completed: true })
+    .where(eq(handInfo.handId, handId));
+
+  const rows = await tx
+    .select({
+      handPlayerResultId: handPlayerResult.handPlayerResultId,
+      endScore: handPlayerResult.endScore,
+    })
+    .from(handPlayerResult)
+    .where(eq(handPlayerResult.handId, handId));
+
+  const scores = rows.map((r) => r.endScore as number);
+  for (const row of rows) {
+    const endScore = row.endScore as number;
+    const countHigher = scores.filter((s) => s > endScore).length;
+    const countLower = scores.filter((s) => s < endScore).length;
+    const position =
+      Math.round(((countHigher - countLower + 5) / 2.0) * 10) / 10;
+    await tx
+      .update(handPlayerResult)
+      .set({ position: String(position) })
+      .where(eq(handPlayerResult.handPlayerResultId, row.handPlayerResultId));
+  }
+};
+
+const loadScoreCalcInput = async (
+  exec: DbOrTx,
+  handId: number,
+): Promise<ScoreCalcInputDto | undefined> => {
+  const start = performance.now();
+  const handRow = await exec
+    .select({
+      handId: handInfo.handId,
+      gameId: handInfo.gameId,
+      honba: handInfo.honba,
+      handOutcome: handInfo.handOutcome,
+      han: handWin.han,
+      fu: handWin.fu,
+      kiriageMangan: rulesetInfo.kiriageMangan,
+    })
+    .from(handInfo)
+    .leftJoin(handWin, eq(handInfo.handId, handWin.handId))
+    .innerJoin(gameInfo, eq(handInfo.gameId, gameInfo.gameId))
+    .leftJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
+    .where(eq(handInfo.handId, handId))
+    .limit(1);
+
+  if (!handRow[0]) {
+    logger.debug(
+      {
+        query: 'findScoreCalcInput',
+        handId,
+        rowCount: 0,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'hand.findScoreCalcInput',
+    );
+    return undefined;
+  }
+
+  const [winCount, handResults] = await Promise.all([
+    db
+      .select({ value: count() })
+      .from(handWin)
+      .where(eq(handWin.handId, handId)),
+    db
+      .select({
+        handPlayerResultId: handPlayerResult.handPlayerResultId,
+        playerId: handPlayerResult.playerId,
+        dealer: handPlayerResult.dealer,
+        outcome: handPlayerResult.outcome,
+        endScore: handPlayerResult.endScore,
+        scoreChange: handPlayerResult.scoreChange,
+        tenpai: handPlayerResult.tenpai,
+        riichi: handPlayerResult.riichi,
+        riichiCollected: handPlayerResult.riichiCollected,
+      })
+      .from(handPlayerResult)
+      .where(eq(handPlayerResult.handId, handId)),
+  ]);
+
+  const hand = handRow[0];
+  const isRecordingMultipleRon = (winCount[0]?.value ?? 0) > 1;
+  const riichiDeposits = await computeHandPot(exec, handId);
+
+  logger.debug(
+    {
+      query: 'findScoreCalcInput',
+      handId,
+      rowCount: handResults.length,
+      durationMs: Math.round(performance.now() - start),
+    },
+    'hand.findScoreCalcInput',
+  );
+
+  return {
+    handId: hand.handId,
+    gameId: hand.gameId,
+    han: hand.han,
+    fu: hand.fu,
+    honba: hand.honba,
+    handOutcome: hand.handOutcome,
+    riichiDeposits,
+    isRecordingMultipleRon,
+    kiriageMangan: hand.kiriageMangan ?? false,
+    handResults,
+  };
+};
+
 export type HandPlayerFlag = 'riichi' | 'tenpai' | 'chombo';
 
 export const handRepository = withDbTiming('hand', {
@@ -271,80 +493,42 @@ export const handRepository = withDbTiming('hand', {
 
   findScoreCalcInput: async (
     handId: number,
-  ): Promise<ScoreCalcInputDto | undefined> => {
+  ): Promise<ScoreCalcInputDto | undefined> => loadScoreCalcInput(db, handId),
+
+  /**
+   * Computes and persists a hand's score changes, then confirms it, all in one
+   * transaction. `compute` receives the score-calculation input read inside the
+   * transaction and returns the updates to apply.
+   */
+  saveHand: async (
+    handId: number,
+    compute: (input: ScoreCalcInputDto) => {
+      updates: ScoreChangeUpdate[];
+      winnerHandValue: number | null;
+    },
+  ): Promise<SavedHandDto> => {
     const start = performance.now();
-    const handRow = await db
-      .select({
-        handId: handInfo.handId,
-        gameId: handInfo.gameId,
-        honba: handInfo.honba,
-        han: handWin.han,
-        fu: handWin.fu,
-        kiriageMangan: rulesetInfo.kiriageMangan,
-      })
-      .from(handInfo)
-      .leftJoin(handWin, eq(handInfo.handId, handWin.handId))
-      .innerJoin(gameInfo, eq(handInfo.gameId, gameInfo.gameId))
-      .leftJoin(rulesetInfo, eq(gameInfo.rulesetId, rulesetInfo.rulesetId))
-      .where(eq(handInfo.handId, handId))
-      .limit(1);
-
-    if (!handRow[0]) {
-      logger.debug(
-        {
-          query: 'findScoreCalcInput',
-          handId,
-          rowCount: 0,
-          durationMs: Math.round(performance.now() - start),
-        },
-        'hand.findScoreCalcInput',
-      );
-      return undefined;
-    }
-
-    const [winCount, handResults] = await Promise.all([
-      db
-        .select({ value: count() })
-        .from(handWin)
-        .where(eq(handWin.handId, handId)),
-      db
-        .select({
-          handPlayerResultId: handPlayerResult.handPlayerResultId,
-          playerId: handPlayerResult.playerId,
-          dealer: handPlayerResult.dealer,
-          outcome: handPlayerResult.outcome,
-          endScore: handPlayerResult.endScore,
-          scoreChange: handPlayerResult.scoreChange,
-        })
-        .from(handPlayerResult)
-        .where(eq(handPlayerResult.handId, handId)),
-    ]);
-
-    const hand = handRow[0];
-    const isRecordingMultipleRon = (winCount[0]?.value ?? 0) > 1;
-    const riichiDeposits = await computeHandPot(db, handId);
-
+    const gameId = await db.transaction(async (tx) => {
+      const input = await loadScoreCalcInput(tx, handId);
+      if (!input) {
+        throw new NotFoundError('Hand not found', 'json');
+      }
+      const { updates, winnerHandValue } = compute(input);
+      if (updates.length > 0) {
+        await applyScoreChangesTx(tx, handId, updates, winnerHandValue);
+      }
+      await confirmHandTx(tx, handId);
+      return input.gameId;
+    });
     logger.debug(
       {
-        query: 'findScoreCalcInput',
+        query: 'saveHand',
         handId,
-        rowCount: handResults.length,
         durationMs: Math.round(performance.now() - start),
       },
-      'hand.findScoreCalcInput',
+      'hand.saveHand',
     );
-
-    return {
-      handId: hand.handId,
-      gameId: hand.gameId,
-      han: hand.han,
-      fu: hand.fu,
-      honba: hand.honba,
-      riichiDeposits,
-      isRecordingMultipleRon,
-      kiriageMangan: hand.kiriageMangan ?? false,
-      handResults,
-    };
+    return { handId, gameId };
   },
 
   findMultipleRonStatus: async (
@@ -1037,108 +1221,13 @@ export const handRepository = withDbTiming('hand', {
 
   applyScoreChanges: async (
     handId: number,
-    updates: {
-      handPlayerResultId: number;
-      scoreChange: number;
-      winner: boolean;
-    }[],
+    updates: ScoreChangeUpdate[],
     winnerHandValue: number | null,
   ): Promise<HandMutationResponseDto> => {
     const start = performance.now();
-    await db.transaction(async (tx) => {
-      for (const update of updates) {
-        const row = await tx
-          .select({
-            playerId: handPlayerResult.playerId,
-            outcome: handPlayerResult.outcome,
-            riichi: handPlayerResult.riichi,
-          })
-          .from(handPlayerResult)
-          .where(
-            and(
-              eq(handPlayerResult.handId, handId),
-              eq(
-                handPlayerResult.handPlayerResultId,
-                update.handPlayerResultId,
-              ),
-            ),
-          )
-          .limit(1);
-        const current = row[0];
-        if (!current) {
-          throw new NotFoundError('Hand player result not found', 'json');
-        }
-
-        // score_change SET = (riichi ? -10 : 0) + payload delta
-        await tx
-          .update(handPlayerResult)
-          .set({
-            scoreChange: sql`(case when ${handPlayerResult.riichi} then -10 else 0 end) + ${update.scoreChange}`,
-          })
-          .where(
-            eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
-          );
-
-        if (update.winner && current.outcome) {
-          await tx
-            .insert(handWin)
-            .values({
-              handId,
-              winnerPlayerId: current.playerId,
-              han: null,
-              fu: null,
-              handValue: update.scoreChange,
-              winType: mapWinType(current.outcome),
-            })
-            .onConflictDoUpdate({
-              target: [handWin.handId, handWin.winnerPlayerId],
-              set: { handValue: update.scoreChange },
-            });
-        }
-      }
-
-      if (winnerHandValue !== null) {
-        await tx
-          .update(handPlayerResult)
-          .set({ riichiCollected: 0 })
-          .where(eq(handPlayerResult.handId, handId));
-
-        // Multiple Ron is not supported by the bot flow; head-bump winner selection is out of scope.
-        const winnerUpdate = updates.find((u) => u.winner);
-        if (winnerUpdate) {
-          const [potStartRow, depositedRow] = await Promise.all([
-            tx
-              .select({ riichiPotStart: handInfo.riichiPotStart })
-              .from(handInfo)
-              .where(eq(handInfo.handId, handId))
-              .limit(1),
-            tx
-              .select({
-                deposited: sql<number>`coalesce(sum(${handPlayerResult.riichiDeposited}), 0)`,
-              })
-              .from(handPlayerResult)
-              .where(eq(handPlayerResult.handId, handId)),
-          ]);
-          const fullPot =
-            (potStartRow[0]?.riichiPotStart ?? 0) +
-            Number(depositedRow[0]?.deposited ?? 0);
-          await tx
-            .update(handPlayerResult)
-            .set({ riichiCollected: fullPot })
-            .where(
-              eq(
-                handPlayerResult.handPlayerResultId,
-                winnerUpdate.handPlayerResultId,
-              ),
-            );
-        }
-
-        await tx
-          .update(handWin)
-          .set({ handValue: winnerHandValue })
-          .where(eq(handWin.handId, handId));
-      }
-    });
+    await db.transaction((tx) =>
+      applyScoreChangesTx(tx, handId, updates, winnerHandValue),
+    );
     logger.debug(
       {
         query: 'applyScoreChanges',
@@ -1153,35 +1242,7 @@ export const handRepository = withDbTiming('hand', {
 
   confirmHand: async (handId: number): Promise<HandMutationResponseDto> => {
     const start = performance.now();
-    await db.transaction(async (tx) => {
-      await tx
-        .update(handInfo)
-        .set({ completed: true })
-        .where(eq(handInfo.handId, handId));
-
-      const rows = await tx
-        .select({
-          handPlayerResultId: handPlayerResult.handPlayerResultId,
-          endScore: handPlayerResult.endScore,
-        })
-        .from(handPlayerResult)
-        .where(eq(handPlayerResult.handId, handId));
-
-      const scores = rows.map((r) => r.endScore as number);
-      for (const row of rows) {
-        const endScore = row.endScore as number;
-        const countHigher = scores.filter((s) => s > endScore).length;
-        const countLower = scores.filter((s) => s < endScore).length;
-        const position =
-          Math.round(((countHigher - countLower + 5) / 2.0) * 10) / 10;
-        await tx
-          .update(handPlayerResult)
-          .set({ position: String(position) })
-          .where(
-            eq(handPlayerResult.handPlayerResultId, row.handPlayerResultId),
-          );
-      }
-    });
+    await db.transaction((tx) => confirmHandTx(tx, handId));
     logger.debug(
       {
         query: 'confirmHand',

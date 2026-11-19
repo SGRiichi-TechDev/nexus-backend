@@ -11,6 +11,7 @@ import type {
   MultipleRonStatusDto,
   PlayerInfo,
   RulesetInfoSelect,
+  SaveHandResponseDto,
   ScoreCalcInputDto,
   Wind,
 } from '#db/types.js';
@@ -23,6 +24,8 @@ import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
 import { gameRepository } from '#repositories/game.repository.js';
 import { handRepository } from '#repositories/hand.repository.js';
+import { referenceService } from '#services/reference.service.js';
+import { computeScoreChanges } from '#services/score-calculation.service.js';
 
 const logger = createLogger('hand.service');
 
@@ -534,6 +537,27 @@ export const handService = {
     const result = await handRepository.confirmHand(handId);
     logger.debug({ handId }, 'Confirmed hand');
     return result;
+  },
+
+  /**
+   * Saves a hand in one request: computes the score changes server-side,
+   * applies them and confirms the hand in a single transaction, then returns
+   * the hand summary and the data needed to start the next hand.
+   */
+  saveHand: async (handId: number): Promise<SaveHandResponseDto> => {
+    const lookup = await referenceService.getScoreLookupCached();
+    const saved = await handRepository.saveHand(handId, (input) =>
+      computeScoreChanges(input, lookup),
+    );
+    const [hand, lastForNext] = await Promise.all([
+      handRepository.findHandDetails(handId),
+      gameRepository.findLastHandForNextInsert(saved.gameId),
+    ]);
+    if (!hand) {
+      throw new NotFoundError('Hand not found', 'json');
+    }
+    logger.debug({ handId, gameId: saved.gameId }, 'Saved hand');
+    return { handId, hand, lastForNext: lastForNext ?? null };
   },
 
   createHandWin: async (

@@ -4,6 +4,7 @@ import handController from '#controller/hand-controller.js';
 const router: Router = express.Router();
 
 router.post('/:id/next', handController.createNextHand);
+router.post('/:id/save', handController.saveHand);
 router.post('/:id/confirm', handController.confirmHand);
 router.post('/:id/wins', handController.createHandWin);
 router.put('/:id/riichi', handController.replaceRiichi);
