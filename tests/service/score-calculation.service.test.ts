@@ -47,6 +47,15 @@ const lookup: ScoreLookupRow[] = [
   row(4, 30, false, 'Tsumo-loss', -20, -1, true),
   row(4, 30, true, 'Tsumo-loss', -39, -1, false),
   row(4, 30, true, 'Tsumo-loss', -40, -1, true),
+  row(3, 30, false, 'Ron', 39, 3),
+  row(3, 30, false, 'Deal-in', -39, -3),
+  row(2, 40, false, 'Tsumo', 52, 3),
+  row(2, 40, false, 'Tsumo-loss', -13, -1),
+  row(2, 40, true, 'Tsumo-loss', -26, -1),
+  row(0, 0, false, 'Nagashi-win', 80, 0),
+  row(0, 0, true, 'Nagashi-win', 120, 0),
+  row(0, 0, false, 'Nagashi-loss', -20, 0),
+  row(0, 0, true, 'Nagashi-loss', -40, 0),
 ];
 
 const seat = (
@@ -120,7 +129,7 @@ describe('computeScoreChanges', () => {
       );
       // 20 + 2*3 honba + 2 sticks * 10 = 46; deal-in pays 20 + 2*3 = 26
       expect(deltas(r)).toEqual([0, 46, -26, 0]);
-      expect(r.winnerHandValue).toBe(20);
+      expect(r.winnerHandValue).toBe(46);
     });
 
     it('looks up mangan and above with fu 0', () => {
@@ -211,6 +220,70 @@ describe('computeScoreChanges', () => {
       );
       expect(deltas(normal)[0]).toBe(-39);
       expect(deltas(kiriage)[0]).toBe(-40);
+    });
+  });
+
+  describe('parity with the bot (compute-score-change.spec.ts)', () => {
+    it('Ron 3/30, 1 honba, 1 stick: winner 52, deal-in -42', () => {
+      const r = computeScoreChanges(
+        input({
+          han: 3,
+          fu: 30,
+          honba: 1,
+          riichiDeposits: 1,
+          handResults: [
+            seat(1, false, { outcome: 'Ron' }),
+            seat(2, false, { outcome: 'Deal-in' }),
+            seat(3, false),
+            seat(4, true),
+          ],
+        }),
+        lookup,
+      );
+      expect(deltas(r)).toEqual([52, -42, 0, 0]);
+      expect(r.winnerHandValue).toBe(52);
+    });
+
+    it('Tsumo 2/40: 52 / -13 / -26 / -13', () => {
+      const r = computeScoreChanges(
+        input({
+          han: 2,
+          fu: 40,
+          handOutcome: 'Tsumo',
+          handResults: [
+            seat(1, false, { outcome: 'Tsumo' }),
+            seat(2, false),
+            seat(3, true),
+            seat(4, false),
+          ],
+        }),
+        lookup,
+      );
+      expect(deltas(r)).toEqual([52, -13, -26, -13]);
+      expect(r.winnerHandValue).toBe(52);
+    });
+  });
+
+  describe('Nagashi mangan', () => {
+    it('pays winner and losers from the Nagashi lookup rows', () => {
+      const r = computeScoreChanges(
+        input({
+          handOutcome: 'Nagashi Mangan',
+          han: null,
+          fu: null,
+          riichiDeposits: 2,
+          handResults: [
+            seat(1, true, { outcome: 'Nagashi-loss' }),
+            seat(2, false, { outcome: 'Nagashi-win' }),
+            seat(3, false, { outcome: 'Nagashi-loss' }),
+            seat(4, false, { outcome: 'Nagashi-loss' }),
+          ],
+        }),
+        lookup,
+      );
+      expect(deltas(r)).toEqual([-40, 80, -20, -20]);
+      expect(r.updates.some((u) => u.winner)).toBe(false);
+      expect(r.winnerHandValue).toBeNull();
     });
   });
 

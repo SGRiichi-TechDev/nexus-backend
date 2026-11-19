@@ -23,7 +23,7 @@ const MANGAN_HAN = 5;
 
 export type ComputedScoreChanges = {
   updates: ScoreChangeUpdate[];
-  /** Hand value (lookup value, excluding honba and riichi sticks); null when nobody won. */
+  /** The winner's total score change (incl. honba and riichi sticks); null when nobody won by Ron/Tsumo. */
   winnerHandValue: number | null;
 };
 
@@ -154,7 +154,56 @@ const computeWin = (
     scoreChange: deltaByResultId.get(r.handPlayerResultId) ?? 0,
     winner: r === winner,
   }));
-  return { updates, winnerHandValue: winRow.value };
+  return { updates, winnerHandValue: winnerDelta };
+};
+
+/**
+ * Nagashi mangan: winners and losers come straight from the individual
+ * outcomes (Nagashi-win / Nagashi-loss) and are looked up with han 0, fu 0.
+ * Nobody collects riichi sticks, and no hand_win row is written.
+ */
+const computeNagashi = (
+  input: ScoreCalcInputDto,
+  lookup: ScoreLookupRow[],
+): ComputedScoreChanges => {
+  const firstWinner = input.handResults.find(
+    (r) => r.outcome === 'Nagashi-win',
+  );
+  if (!firstWinner) {
+    throw new BadRequestError('No Nagashi-win player found', 'json');
+  }
+  const updates = input.handResults.map((r) => {
+    let scoreChange = 0;
+    if (r.outcome === 'Nagashi-win') {
+      scoreChange = withHonba(
+        findLookupRow(lookup, {
+          han: 0,
+          fu: 0,
+          kiriageMangan: input.kiriageMangan,
+          dealer: r.dealer,
+          outcome: 'Nagashi-win',
+        }),
+        input.honba,
+      );
+    } else if (r.outcome === 'Nagashi-loss') {
+      scoreChange = withHonba(
+        findLookupRow(lookup, {
+          han: 0,
+          fu: 0,
+          kiriageMangan: input.kiriageMangan,
+          dealer: r.dealer || firstWinner.dealer,
+          outcome: 'Nagashi-loss',
+        }),
+        input.honba,
+      );
+    }
+    return {
+      handPlayerResultId: r.handPlayerResultId,
+      scoreChange,
+      winner: false,
+    };
+  });
+  return { updates, winnerHandValue: null };
 };
 
 export const computeScoreChanges = (
@@ -170,6 +219,8 @@ export const computeScoreChanges = (
       return computeWin(input, lookup, input.handOutcome);
     case 'Draw':
       return computeDraw(input);
+    case 'Nagashi Mangan':
+      return computeNagashi(input, lookup);
     case 'Mid Game Draw':
     case 'Chombo':
       // Nothing to calculate: riichi sticks / chombo penalties were applied
