@@ -76,6 +76,24 @@ const handController = {
     res.status(200).json(result);
   },
 
+  async toggleRiichi(req: Request, res: Response) {
+    const handId = Number(req.params.id);
+    const result = await handService.toggleRiichi(handId, req.body?.playerId);
+    res.status(200).json(result);
+  },
+
+  async toggleTenpai(req: Request, res: Response) {
+    const handId = Number(req.params.id);
+    const result = await handService.toggleTenpai(handId, req.body?.playerId);
+    res.status(200).json(result);
+  },
+
+  async toggleChombo(req: Request, res: Response) {
+    const handId = Number(req.params.id);
+    const result = await handService.toggleChombo(handId, req.body?.playerId);
+    res.status(200).json(result);
+  },
+
   async resetRiichi(req: Request, res: Response) {
     const handId = Number(req.params.id);
     const result = await handService.resetRiichi(handId);

@@ -23,7 +23,10 @@ import {
 import { BadRequestError, NotFoundError } from '#errors/app-error.js';
 import { createLogger } from '#logger/logger.js';
 import { gameRepository } from '#repositories/game.repository.js';
-import { handRepository } from '#repositories/hand.repository.js';
+import {
+  type HandPlayerFlag,
+  handRepository,
+} from '#repositories/hand.repository.js';
 import { referenceService } from '#services/reference.service.js';
 import { computeScoreChanges } from '#services/score-calculation.service.js';
 
@@ -200,6 +203,37 @@ const assertHandExists = async (handId: number): Promise<void> => {
   }
 };
 
+/**
+ * Flips one player's flag in a single round trip. The extra existence check
+ * only runs on the error path, to tell an unknown hand from an unseated player.
+ */
+const toggleFlag = async (
+  handId: number,
+  playerIdRaw: unknown,
+  flag: HandPlayerFlag,
+): Promise<PlayerInfo[]> => {
+  requireFiniteInteger(handId, 'handId');
+  const playerId = requireFiniteInteger(
+    playerIdRaw === null || playerIdRaw === undefined || playerIdRaw === ''
+      ? Number.NaN
+      : Number(playerIdRaw),
+    'playerId',
+  );
+  const result = await handRepository.toggleFlag(handId, playerId, flag);
+  if (!result.toggled) {
+    await assertHandExists(handId);
+    throw new BadRequestError(
+      'playerId must belong to a player seated on the hand',
+      'json',
+    );
+  }
+  logger.debug(
+    { handId, playerId, flag, count: result.players.length },
+    'Toggled hand player flag',
+  );
+  return result.players;
+};
+
 export const handService = {
   createNextHand: async (
     previousHandId: number,
@@ -333,6 +367,15 @@ export const handService = {
     logger.debug({ handId, playerIds: ids }, 'Applied riichi result');
     return result;
   },
+
+  toggleRiichi: (handId: number, playerId: unknown): Promise<PlayerInfo[]> =>
+    toggleFlag(handId, playerId, 'riichi'),
+
+  toggleTenpai: (handId: number, playerId: unknown): Promise<PlayerInfo[]> =>
+    toggleFlag(handId, playerId, 'tenpai'),
+
+  toggleChombo: (handId: number, playerId: unknown): Promise<PlayerInfo[]> =>
+    toggleFlag(handId, playerId, 'chombo'),
 
   resetRiichi: async (handId: number): Promise<HandMutationResponseDto> => {
     await assertHandExists(handId);

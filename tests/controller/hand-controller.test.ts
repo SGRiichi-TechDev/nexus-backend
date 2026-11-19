@@ -9,6 +9,9 @@ vi.mock('#services/hand.service.js', () => ({
     createNextHand: vi.fn(),
     getHandDetails: vi.fn(),
     replaceRiichi: vi.fn(),
+    toggleRiichi: vi.fn(),
+    toggleTenpai: vi.fn(),
+    toggleChombo: vi.fn(),
     applyRiichi: vi.fn(),
     resetRiichi: vi.fn(),
     setHandOutcome: vi.fn(),
@@ -300,4 +303,26 @@ describe('include=session on writes', () => {
     expect(mockedSession.getByHandId).toHaveBeenCalledWith(3);
     expect(res.json).toHaveBeenCalledWith({ handId: 3, session });
   });
+});
+
+describe('handController flag toggles', () => {
+  it.each(['toggleRiichi', 'toggleTenpai', 'toggleChombo'] as const)(
+    '%s returns 200 with the updated player list',
+    async (method) => {
+      const players = [{ playerId: 2, displayName: 'B' } as never];
+      mockedService[method].mockResolvedValue(players);
+
+      const req = {
+        params: { id: '9' },
+        body: { playerId: 2 },
+      } as unknown as Request;
+      const res = mockResponse();
+
+      await handController[method](req, res);
+
+      expect(mockedService[method]).toHaveBeenCalledWith(9, 2);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(players);
+    },
+  );
 });
