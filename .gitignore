@@ -8,3 +8,6 @@
 
 # Compiled output
 /dist
+
+# Local dev logs
+/logs
