@@ -9,6 +9,7 @@
     "test:integration": "bash scripts/test-integration.sh",
     "typecheck": "tsc --noEmit",
     "dev": "tsx watch --env-file=.env src/server.ts",
+    "dev:log": "mkdir -p logs && tsx watch --env-file=.env src/server.ts 2>&1 | tee logs/backend.log",
     "build": "tsc",
     "start": "node --conditions=production dist/src/server.js",
     "lint": "biome lint .",
