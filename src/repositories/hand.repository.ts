@@ -226,7 +226,7 @@ const confirmHandTx = async (tx: DbTx, handId: number): Promise<void> => {
   }
 };
 
-const loadScoreCalcInput = async (
+export const loadScoreCalcInput = async (
   exec: DbOrTx,
   handId: number,
 ): Promise<ScoreCalcInputDto | undefined> => {
@@ -261,12 +261,14 @@ const loadScoreCalcInput = async (
     return undefined;
   }
 
+  // Read through `exec` so callers that pass a transaction (saveHand) see
+  // their own uncommitted writes and a consistent snapshot.
   const [winCount, handResults] = await Promise.all([
-    db
+    exec
       .select({ value: count() })
       .from(handWin)
       .where(eq(handWin.handId, handId)),
-    db
+    exec
       .select({
         handPlayerResultId: handPlayerResult.handPlayerResultId,
         playerId: handPlayerResult.playerId,
