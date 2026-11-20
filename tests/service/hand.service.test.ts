@@ -354,6 +354,22 @@ describe('handService tenpai chombo score confirm', () => {
     expect(mockedRepo.applyScoreChanges).not.toHaveBeenCalled();
   });
 
+  it('applyScoreChanges rejects duplicate handPlayerResultIds', async () => {
+    mockedRepo.existsById.mockResolvedValue(true);
+
+    await expect(
+      handService.applyScoreChanges(
+        9,
+        [
+          { handPlayerResultId: 50, scoreChange: 10, winner: false },
+          { handPlayerResultId: 50, scoreChange: -10, winner: false },
+        ],
+        null,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(mockedRepo.applyScoreChanges).not.toHaveBeenCalled();
+  });
+
   it('applyScoreChanges forwards updates', async () => {
     mockedRepo.existsById.mockResolvedValue(true);
     mockedRepo.applyScoreChanges.mockResolvedValue({ handId: 9 });
