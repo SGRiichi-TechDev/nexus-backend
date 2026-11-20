@@ -187,6 +187,13 @@ const parseScoreChangeUpdates = (
     requireFiniteNumber(scoreChange, 'updates.scoreChange');
     updates.push({ handPlayerResultId, scoreChange, winner });
   }
+  const uniqueIds = new Set(updates.map((u) => u.handPlayerResultId));
+  if (uniqueIds.size !== updates.length) {
+    throw new BadRequestError(
+      'updates.handPlayerResultId must be unique',
+      'json',
+    );
+  }
   if (updates.length > MAX_SEATED_PLAYERS) {
     throw new BadRequestError(
       `updates must contain at most ${MAX_SEATED_PLAYERS} entries`,

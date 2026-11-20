@@ -100,101 +100,123 @@ type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type SavedHandDto = { handId: number; gameId: number };
 
+/**
+ * Applies a hand's score changes as one set-based statement (one round trip):
+ *
+ * - `score_change` = (riichi ? -10 : 0) + payload delta, plus the optional
+ *   draw `outcome`, for every row in `updates`.
+ * - When `winnerHandValue` is set: every row's `riichi_collected` is reset to
+ *   0 and the first winner collects the full pot
+ *   (`riichi_pot_start + Σ riichi_deposited`).
+ * - `hand_win` is upserted for each winner whose outcome was already set
+ *   before this statement (win type comes from that outcome), and every
+ *   `hand_win` row of the hand gets `hand_value = winnerHandValue` when set
+ *   (otherwise the winner's own score change).
+ *
+ * Throws NotFoundError when an update's row does not belong to the hand; the
+ * caller's transaction then rolls the statement back.
+ */
 const applyScoreChangesTx = async (
   tx: DbTx,
   handId: number,
   updates: ScoreChangeUpdateDto[],
   winnerHandValue: number | null,
 ): Promise<void> => {
-  for (const update of updates) {
-    const row = await tx
-      .select({
-        playerId: handPlayerResult.playerId,
-        outcome: handPlayerResult.outcome,
-        riichi: handPlayerResult.riichi,
-      })
-      .from(handPlayerResult)
-      .where(
-        and(
-          eq(handPlayerResult.handId, handId),
-          eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
-        ),
-      )
-      .limit(1);
-    const current = row[0];
-    if (!current) {
-      throw new NotFoundError('Hand player result not found', 'json');
-    }
-
-    // score_change SET = (riichi ? -10 : 0) + payload delta
-    await tx
-      .update(handPlayerResult)
-      .set({
-        scoreChange: sql`(case when ${handPlayerResult.riichi} then -10 else 0 end) + ${update.scoreChange}`,
-        ...(update.outcome ? { outcome: update.outcome } : {}),
-      })
-      .where(
-        eq(handPlayerResult.handPlayerResultId, update.handPlayerResultId),
-      );
-
-    if (update.winner && current.outcome) {
-      await tx
-        .insert(handWin)
-        .values({
-          handId,
-          winnerPlayerId: current.playerId,
-          han: null,
-          fu: null,
-          handValue: update.scoreChange,
-          winType: mapWinType(current.outcome),
-        })
-        .onConflictDoUpdate({
-          target: [handWin.handId, handWin.winnerPlayerId],
-          set: { handValue: update.scoreChange },
-        });
-    }
+  if (updates.length === 0) {
+    return;
+  }
+  const uniqueIds = new Set(updates.map((u) => u.handPlayerResultId));
+  if (uniqueIds.size !== updates.length) {
+    throw new BadRequestError(
+      'updates.handPlayerResultId must be unique',
+      'json',
+    );
   }
 
-  if (winnerHandValue !== null) {
-    await tx
-      .update(handPlayerResult)
-      .set({ riichiCollected: 0 })
-      .where(eq(handPlayerResult.handId, handId));
+  // Multiple Ron is not supported by the bot flow; head-bump winner selection is out of scope.
+  const winnerHprId = updates.find((u) => u.winner)?.handPlayerResultId ?? null;
+  const inputRows = sql.join(
+    updates.map(
+      (u) =>
+        sql`(${u.handPlayerResultId}::bigint, ${u.scoreChange}::integer, ${u.outcome ?? null}::individual_outcome_enum, ${u.winner}::boolean)`,
+    ),
+    sql`, `,
+  );
+  const handValue = sql`${winnerHandValue}::integer`;
+  const hand = sql`${handId}::bigint`;
 
-    // Multiple Ron is not supported by the bot flow; head-bump winner selection is out of scope.
-    const winnerUpdate = updates.find((u) => u.winner);
-    if (winnerUpdate) {
-      const [potStartRow, depositedRow] = await Promise.all([
-        tx
-          .select({ riichiPotStart: handInfo.riichiPotStart })
-          .from(handInfo)
-          .where(eq(handInfo.handId, handId))
-          .limit(1),
-        tx
-          .select({
-            deposited: sql<number>`coalesce(sum(${handPlayerResult.riichiDeposited}), 0)`,
-          })
-          .from(handPlayerResult)
-          .where(eq(handPlayerResult.handId, handId)),
-      ]);
-      const fullPot =
-        (potStartRow[0]?.riichiPotStart ?? 0) +
-        Number(depositedRow[0]?.deposited ?? 0);
-      await tx
-        .update(handPlayerResult)
-        .set({ riichiCollected: fullPot })
-        .where(
-          eq(
-            handPlayerResult.handPlayerResultId,
-            winnerUpdate.handPlayerResultId,
-          ),
-        );
-    }
+  const rows = await tx.execute<{ matched: number }>(sql`
+    with input (hand_player_result_id, score_change, outcome, winner) as (
+      values ${inputRows}
+    ),
+    pot as (
+      select coalesce((
+        select h.riichi_pot_start from hand_info h where h.hand_id = ${hand}
+      ), 0) + coalesce((
+        select sum(d.riichi_deposited) from hand_player_result d
+        where d.hand_id = ${hand}
+      ), 0) as full_pot
+    ),
+    updated as (
+      update hand_player_result hpr
+      set
+        score_change = case
+          when input.hand_player_result_id is null then hpr.score_change
+          else (case when hpr.riichi then -10 else 0 end) + input.score_change
+        end,
+        outcome = coalesce(input.outcome, hpr.outcome),
+        riichi_collected = case
+          when ${handValue} is null then hpr.riichi_collected
+          when hpr.hand_player_result_id = ${winnerHprId}::bigint
+            then (select full_pot from pot)
+          else 0
+        end
+      from hand_player_result prev
+      left join input
+        on input.hand_player_result_id = prev.hand_player_result_id
+      where prev.hand_player_result_id = hpr.hand_player_result_id
+        and hpr.hand_id = ${hand}
+        and (input.hand_player_result_id is not null or ${handValue} is not null)
+      returning
+        hpr.player_id,
+        prev.outcome as prev_outcome,
+        input.hand_player_result_id is not null as matched,
+        coalesce(input.winner, false) as winner,
+        input.score_change
+    ),
+    winners as (
+      select player_id, prev_outcome, score_change
+      from updated
+      where winner and prev_outcome is not null
+    ),
+    upserted as (
+      insert into hand_win (hand_id, winner_player_id, hand_value, win_type)
+      select
+        ${hand},
+        w.player_id,
+        coalesce(${handValue}, w.score_change),
+        case w.prev_outcome
+          when 'Tsumo' then 'Tsumo'::win_type_enum
+          when 'Nagashi-win' then 'Nagashi Mangan'::win_type_enum
+          else 'Ron'::win_type_enum
+        end
+      from winners w
+      on conflict (hand_id, winner_player_id)
+        do update set hand_value = excluded.hand_value
+    ),
+    other_wins as (
+      update hand_win hw
+      set hand_value = ${handValue}
+      where ${handValue} is not null
+        and hw.hand_id = ${hand}
+        and hw.winner_player_id not in (select player_id from winners)
+    )
+    select (count(*) filter (where matched))::int as matched from updated
+  `);
 
-    await tx
-      .update(handWin)
-      .set({ handValue: winnerHandValue })
-      .where(eq(handWin.handId, handId));
+  const matched = Number(rows[0]?.matched ?? 0);
+  if (matched !== updates.length) {
+    throw new NotFoundError('Hand player result not found', 'json');
   }
 };
 
@@ -617,9 +639,7 @@ export const handRepository = withDbTiming('hand', {
         throw new NotFoundError('Hand not found', 'json');
       }
       const { updates, winnerHandValue } = compute(input);
-      if (updates.length > 0) {
-        await applyScoreChangesTx(tx, handId, updates, winnerHandValue);
-      }
+      await applyScoreChangesTx(tx, handId, updates, winnerHandValue);
       await confirmHandTx(tx, handId);
       return input.gameId;
     });
