@@ -1,7 +1,6 @@
 import {
   and,
   asc,
-  count,
   desc,
   eq,
   getColumns,
@@ -240,6 +239,12 @@ export const loadScoreCalcInput = async (
       han: handWin.han,
       fu: handWin.fu,
       kiriageMangan: rulesetInfo.kiriageMangan,
+      // Folded into this query so the transaction path makes one fewer
+      // sequential query (they share the transaction's single connection).
+      winCount:
+        sql<number>`(select count(*) from ${handWin} where ${handWin.handId} = ${handInfo.handId})`.mapWith(
+          Number,
+        ),
     })
     .from(handInfo)
     .leftJoin(handWin, eq(handInfo.handId, handWin.handId))
@@ -263,29 +268,23 @@ export const loadScoreCalcInput = async (
 
   // Read through `exec` so callers that pass a transaction (saveHand) see
   // their own uncommitted writes and a consistent snapshot.
-  const [winCount, handResults] = await Promise.all([
-    exec
-      .select({ value: count() })
-      .from(handWin)
-      .where(eq(handWin.handId, handId)),
-    exec
-      .select({
-        handPlayerResultId: handPlayerResult.handPlayerResultId,
-        playerId: handPlayerResult.playerId,
-        dealer: handPlayerResult.dealer,
-        outcome: handPlayerResult.outcome,
-        endScore: handPlayerResult.endScore,
-        scoreChange: handPlayerResult.scoreChange,
-        tenpai: handPlayerResult.tenpai,
-        riichi: handPlayerResult.riichi,
-        riichiCollected: handPlayerResult.riichiCollected,
-      })
-      .from(handPlayerResult)
-      .where(eq(handPlayerResult.handId, handId)),
-  ]);
+  const handResults = await exec
+    .select({
+      handPlayerResultId: handPlayerResult.handPlayerResultId,
+      playerId: handPlayerResult.playerId,
+      dealer: handPlayerResult.dealer,
+      outcome: handPlayerResult.outcome,
+      endScore: handPlayerResult.endScore,
+      scoreChange: handPlayerResult.scoreChange,
+      tenpai: handPlayerResult.tenpai,
+      riichi: handPlayerResult.riichi,
+      riichiCollected: handPlayerResult.riichiCollected,
+    })
+    .from(handPlayerResult)
+    .where(eq(handPlayerResult.handId, handId));
 
   const hand = handRow[0];
-  const isRecordingMultipleRon = (winCount[0]?.value ?? 0) > 1;
+  const isRecordingMultipleRon = hand.winCount > 1;
   const riichiDeposits = await computeHandPot(exec, handId);
 
   logger.debug(
