@@ -11,6 +11,7 @@ import {
   notInArray,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '#db/index.js';
 import type {
   HandDetailsDto,
@@ -311,6 +312,44 @@ const loadScoreCalcInput = async (
 
 export type HandPlayerFlag = 'riichi' | 'tenpai' | 'chombo';
 
+export type ToggleFlagResult = {
+  /** False when no seat matched (unknown hand, or player not seated on it). */
+  toggled: boolean;
+  /** Players with the flag set after the toggle (riichi: in declaration order). */
+  players: PlayerInfo[];
+};
+
+/**
+ * SET clause that flips `flag` on a single hand_player_result row, keeping the
+ * dependent columns consistent with the matching replace* methods.
+ */
+const buildToggleSet = (handId: number, flag: HandPlayerFlag) => {
+  const current = handPlayerResult[flag];
+  if (flag === 'riichi') {
+    const existing = alias(handPlayerResult, 'existing_riichi');
+    const nextOrder = db
+      .select({
+        nextOrder: sql<number>`coalesce(max(${existing.riichiOrder}) + 1, 0)`,
+      })
+      .from(existing)
+      .where(and(eq(existing.handId, handId), eq(existing.riichi, true)));
+    return {
+      riichi: sql<boolean>`not ${current}`,
+      riichiDeposited: sql<number>`case when ${current} then 0 else 1 end`,
+      riichiOrder: sql<
+        number | null
+      >`case when ${current} then null else (${nextOrder}) end`,
+    };
+  }
+  if (flag === 'chombo') {
+    return {
+      chombo: sql<boolean>`not ${current}`,
+      outcome: sql<IndividualOutcome | null>`case when ${current} then nullif(${handPlayerResult.outcome}, 'Chombo') else 'Chombo' end`,
+    };
+  }
+  return { tenpai: sql<boolean>`not ${current}` };
+};
+
 export const handRepository = withDbTiming('hand', {
   existsById: async (handId: number): Promise<boolean> => {
     const start = performance.now();
@@ -359,6 +398,77 @@ export const handRepository = withDbTiming('hand', {
       'hand.findPlayersByFlag',
     );
     return players;
+  },
+
+  /**
+   * Flips `flag` for one seated player and returns the resulting flagged
+   * players in a single statement: the UPDATE runs in a data-modifying CTE and
+   * the outer SELECT overlays the updated row on the pre-update snapshot.
+   */
+  toggleFlag: async (
+    handId: number,
+    playerId: number,
+    flag: HandPlayerFlag,
+  ): Promise<ToggleFlagResult> => {
+    const start = performance.now();
+    const toggled = db.$with('toggled').as(
+      db
+        .update(handPlayerResult)
+        .set(buildToggleSet(handId, flag))
+        .where(
+          and(
+            eq(handPlayerResult.handId, handId),
+            eq(handPlayerResult.playerId, playerId),
+          ),
+        )
+        .returning({
+          playerId: handPlayerResult.playerId,
+          flagValue: handPlayerResult[flag],
+          riichiOrder: handPlayerResult.riichiOrder,
+        }),
+    );
+
+    const rows = await db
+      .with(toggled)
+      .select({
+        player: getColumns(playerInfo),
+        isTarget: sql<boolean>`(${toggled.playerId} is not null)`,
+        flagged: sql<boolean>`coalesce(${toggled.flagValue}, ${handPlayerResult[flag]})`,
+        riichiOrder: sql<
+          number | null
+        >`case when ${toggled.playerId} is null then ${handPlayerResult.riichiOrder} else ${toggled.riichiOrder} end`,
+      })
+      .from(handPlayerResult)
+      .innerJoin(playerInfo, eq(handPlayerResult.playerId, playerInfo.playerId))
+      .leftJoin(toggled, eq(toggled.playerId, handPlayerResult.playerId))
+      .where(eq(handPlayerResult.handId, handId));
+
+    const flaggedRows = rows.filter((row) => row.flagged);
+    if (flag === 'riichi') {
+      flaggedRows.sort(
+        (a, b) =>
+          (a.riichiOrder ?? Number.MAX_SAFE_INTEGER) -
+          (b.riichiOrder ?? Number.MAX_SAFE_INTEGER),
+      );
+    }
+    const result: ToggleFlagResult = {
+      toggled: rows.some((row) => row.isTarget),
+      players: flaggedRows.map((row) => row.player),
+    };
+
+    logger.debug(
+      {
+        query: 'toggleFlag',
+        handId,
+        playerId,
+        flag,
+        toggled: result.toggled,
+        flaggedCount: result.players.length,
+        durationMs: Math.round(performance.now() - start),
+      },
+      'hand.toggleFlag',
+    );
+    return result;
   },
 
   findHandDetails: async (

@@ -439,3 +439,122 @@ describe('write flow: hand mid-game mutations', () => {
     expect(nextScoreInput.body.riichiDeposits).toBe(0);
   });
 });
+
+describe('write flow: flag toggles', () => {
+  const ids = (body: { playerId: number }[]) => body.map((p) => p.playerId);
+
+  it('riichi toggle adds in declaration order, removes, and matches GET', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const p1 = handPlayerBySeat.get(1)?.playerId as number;
+    const p2 = handPlayerBySeat.get(2)?.playerId as number;
+    const p3 = handPlayerBySeat.get(3)?.playerId as number;
+
+    const first = await client
+      .post(`/api/v1/hands/${handId}/riichi/toggle`)
+      .send({ playerId: p3 });
+    expect(first.status).toBe(200);
+    expect(ids(first.body)).toEqual([p3]);
+    expect(first.body[0].displayName).toEqual(expect.any(String));
+
+    const second = await client
+      .post(`/api/v1/hands/${handId}/riichi/toggle`)
+      .send({ playerId: p1 });
+    expect(ids(second.body)).toEqual([p3, p1]);
+
+    const removed = await client
+      .post(`/api/v1/hands/${handId}/riichi/toggle`)
+      .send({ playerId: p3 });
+    expect(ids(removed.body)).toEqual([p1]);
+
+    const third = await client
+      .post(`/api/v1/hands/${handId}/riichi/toggle`)
+      .send({ playerId: p2 });
+    expect(ids(third.body)).toEqual([p1, p2]);
+
+    const listed = await client.get(
+      `/api/v1/hands/${handId}/players-in-riichi`,
+    );
+    expect(ids(listed.body)).toEqual([p1, p2]);
+
+    const details = await client.get(`/api/v1/hands/${handId}`);
+    const rows = details.body.individualResult as { riichi: boolean }[];
+    expect(rows.filter((r) => r.riichi)).toHaveLength(2);
+  });
+
+  it('tenpai toggle flips the flag on and off', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const p2 = handPlayerBySeat.get(2)?.playerId as number;
+    const p4 = handPlayerBySeat.get(4)?.playerId as number;
+
+    await client
+      .post(`/api/v1/hands/${handId}/tenpai/toggle`)
+      .send({ playerId: p2 });
+    const both = await client
+      .post(`/api/v1/hands/${handId}/tenpai/toggle`)
+      .send({ playerId: p4 });
+    expect(both.status).toBe(200);
+    expect(ids(both.body).sort()).toEqual([p2, p4].sort());
+
+    const off = await client
+      .post(`/api/v1/hands/${handId}/tenpai/toggle`)
+      .send({ playerId: p2 });
+    expect(ids(off.body)).toEqual([p4]);
+
+    const listed = await client.get(
+      `/api/v1/hands/${handId}/players-in-tenpai`,
+    );
+    expect(ids(listed.body)).toEqual([p4]);
+  });
+
+  it('chombo toggle sets and clears the Chombo outcome', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const p3 = handPlayerBySeat.get(3)?.playerId as number;
+
+    const on = await client
+      .post(`/api/v1/hands/${handId}/chombo/toggle`)
+      .send({ playerId: p3 });
+    expect(on.status).toBe(200);
+    expect(ids(on.body)).toEqual([p3]);
+    const outcomeOn = await client.get(
+      `/api/v1/hands/${handId}/players/${p3}/has-outcome`,
+    );
+    expect(outcomeOn.body.hasOutcome).toBe(true);
+
+    const off = await client
+      .post(`/api/v1/hands/${handId}/chombo/toggle`)
+      .send({ playerId: p3 });
+    expect(off.body).toEqual([]);
+    const outcomeOff = await client.get(
+      `/api/v1/hands/${handId}/players/${p3}/has-outcome`,
+    );
+    expect(outcomeOff.body.hasOutcome).toBe(false);
+
+    const listed = await client.get(
+      `/api/v1/hands/${handId}/players-that-chombo`,
+    );
+    expect(listed.body).toEqual([]);
+  });
+
+  it('returns 404 for an unknown hand', async () => {
+    const res = await client
+      .post('/api/v1/hands/999999999/riichi/toggle')
+      .send({ playerId: FIXTURES.players[0].playerId });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 for a player not seated on the hand', async () => {
+    const { handId } = await bootstrapScratchHand();
+    const res = await client
+      .post(`/api/v1/hands/${handId}/tenpai/toggle`)
+      .send({ playerId: 999999999 });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when playerId is missing', async () => {
+    const { handId } = await bootstrapScratchHand();
+    const res = await client
+      .post(`/api/v1/hands/${handId}/chombo/toggle`)
+      .send({});
+    expect(res.status).toBe(400);
+  });
+});

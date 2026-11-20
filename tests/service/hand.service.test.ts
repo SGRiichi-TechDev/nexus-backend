@@ -13,6 +13,7 @@ vi.mock('#repositories/hand.repository.js', () => ({
     findMultipleRonStatus: vi.fn(),
     existsPlayerOnHand: vi.fn(),
     replaceRiichi: vi.fn(),
+    toggleFlag: vi.fn(),
     applyRiichiResult: vi.fn(),
     resetRiichi: vi.fn(),
     setHandOutcome: vi.fn(),
@@ -447,5 +448,66 @@ describe('handService.saveHand', () => {
     mockedRepo.findHandDetails.mockResolvedValue(undefined);
     mockedGameRepo.findLastHandForNextInsert.mockResolvedValue(undefined);
     await expect(handService.saveHand(7)).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe('handService flag toggles', () => {
+  const players = [{ playerId: 7, displayName: 'A' } as never];
+
+  it.each([
+    ['toggleRiichi', 'riichi'],
+    ['toggleTenpai', 'tenpai'],
+    ['toggleChombo', 'chombo'],
+  ] as const)(
+    '%s toggles the %s flag in one repository call',
+    async (method, flag) => {
+      mockedRepo.toggleFlag.mockResolvedValue({ toggled: true, players });
+
+      await expect(handService[method](3, 7)).resolves.toEqual(players);
+      expect(mockedRepo.toggleFlag).toHaveBeenCalledWith(3, 7, flag);
+      expect(mockedRepo.existsById).not.toHaveBeenCalled();
+    },
+  );
+
+  it('coerces a numeric string playerId', async () => {
+    mockedRepo.toggleFlag.mockResolvedValue({ toggled: true, players: [] });
+
+    await expect(handService.toggleRiichi(3, '7')).resolves.toEqual([]);
+    expect(mockedRepo.toggleFlag).toHaveBeenCalledWith(3, 7, 'riichi');
+  });
+
+  it.each([undefined, null, '', 'abc', 1.5])(
+    'rejects invalid playerId %s with BadRequestError',
+    async (playerId) => {
+      await expect(
+        handService.toggleTenpai(3, playerId),
+      ).rejects.toBeInstanceOf(BadRequestError);
+      expect(mockedRepo.toggleFlag).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a non-integer handId with BadRequestError', async () => {
+    await expect(
+      handService.toggleChombo(Number.NaN, 7),
+    ).rejects.toBeInstanceOf(BadRequestError);
+    expect(mockedRepo.toggleFlag).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundError when nothing toggled and the hand is missing', async () => {
+    mockedRepo.toggleFlag.mockResolvedValue({ toggled: false, players: [] });
+    mockedRepo.existsById.mockResolvedValue(false);
+
+    await expect(handService.toggleRiichi(3, 7)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it('throws BadRequestError when the player is not seated on the hand', async () => {
+    mockedRepo.toggleFlag.mockResolvedValue({ toggled: false, players: [] });
+    mockedRepo.existsById.mockResolvedValue(true);
+
+    await expect(handService.toggleRiichi(3, 99)).rejects.toBeInstanceOf(
+      BadRequestError,
+    );
   });
 });
