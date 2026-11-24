@@ -1,5 +1,8 @@
+import { asc, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { handPlayerResult, handWin } from '#drizzle/schema.js';
 import { createApp } from '../../src/app.js';
+import { db } from '../../src/db/index.js';
 import { api } from './setup/api.js';
 import { FIXTURES } from './setup/fixtures.js';
 
@@ -437,6 +440,203 @@ describe('write flow: hand mid-game mutations', () => {
       `/api/v1/hands/${nextHandId}/score-input`,
     );
     expect(nextScoreInput.body.riichiDeposits).toBe(0);
+  });
+});
+
+describe('write flow: set-based score changes', () => {
+  const resultRows = (handId: number) =>
+    db
+      .select({
+        handPlayerResultId: handPlayerResult.handPlayerResultId,
+        playerId: handPlayerResult.playerId,
+        scoreChange: handPlayerResult.scoreChange,
+        riichiCollected: handPlayerResult.riichiCollected,
+      })
+      .from(handPlayerResult)
+      .where(eq(handPlayerResult.handId, handId))
+      .orderBy(asc(handPlayerResult.handPlayerResultId));
+
+  const winRows = (handId: number) =>
+    db
+      .select({
+        winnerPlayerId: handWin.winnerPlayerId,
+        handValue: handWin.handValue,
+        winType: handWin.winType,
+      })
+      .from(handWin)
+      .where(eq(handWin.handId, handId));
+
+  const declareRiichi = async (handId: number, playerIds: number[]) => {
+    await client.put(`/api/v1/hands/${handId}/riichi`).send({ playerIds });
+    const res = await client
+      .post(`/api/v1/hands/${handId}/riichi/apply`)
+      .send({ playerIds });
+    expect(res.status).toBe(200);
+  };
+
+  it('tsumo winner: deducts riichi, winner collects the full pot, hand_win gets the hand value', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const seat = (n: number) =>
+      handPlayerBySeat.get(n) as {
+        playerId: number;
+        handPlayerResultId: number;
+      };
+    await declareRiichi(handId, [seat(1).playerId, seat(3).playerId]);
+
+    await client
+      .patch(`/api/v1/hands/${handId}/outcome`)
+      .send({ outcome: 'Tsumo' });
+    await client
+      .patch(`/api/v1/hands/${handId}/players/${seat(1).playerId}`)
+      .send({ outcome: 'Tsumo' });
+    await client.patch(`/api/v1/hands/${handId}/han`).send({ han: 2 });
+    await client.patch(`/api/v1/hands/${handId}/fu`).send({ fu: 30 });
+
+    const res = await client
+      .post(`/api/v1/hands/${handId}/score-changes`)
+      .send({
+        updates: [
+          {
+            handPlayerResultId: seat(1).handPlayerResultId,
+            scoreChange: 40,
+            winner: true,
+          },
+          {
+            handPlayerResultId: seat(2).handPlayerResultId,
+            scoreChange: -20,
+            winner: false,
+          },
+          {
+            handPlayerResultId: seat(3).handPlayerResultId,
+            scoreChange: -10,
+            winner: false,
+          },
+          {
+            handPlayerResultId: seat(4).handPlayerResultId,
+            scoreChange: -10,
+            winner: false,
+          },
+        ],
+        winnerHandValue: 60,
+      });
+    expect(res.status).toBe(200);
+
+    const byPlayer = new Map(
+      (await resultRows(handId)).map((r) => [r.playerId, r]),
+    );
+    expect(byPlayer.get(seat(1).playerId)).toMatchObject({
+      scoreChange: 30,
+      riichiCollected: 2,
+    });
+    expect(byPlayer.get(seat(2).playerId)).toMatchObject({
+      scoreChange: -20,
+      riichiCollected: 0,
+    });
+    expect(byPlayer.get(seat(3).playerId)).toMatchObject({
+      scoreChange: -20,
+      riichiCollected: 0,
+    });
+    expect(byPlayer.get(seat(4).playerId)).toMatchObject({
+      scoreChange: -10,
+      riichiCollected: 0,
+    });
+
+    expect(await winRows(handId)).toEqual([
+      { winnerPlayerId: seat(1).playerId, handValue: 60, winType: 'Tsumo' },
+    ]);
+
+    const details = await client.get(`/api/v1/hands/${handId}`);
+    expect(details.body.riichiDeposits).toBe(0);
+  });
+
+  it('ron winner without a hand_win row: inserts one using the existing outcome', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const seat = (n: number) =>
+      handPlayerBySeat.get(n) as {
+        playerId: number;
+        handPlayerResultId: number;
+      };
+
+    await client
+      .patch(`/api/v1/hands/${handId}/outcome`)
+      .send({ outcome: 'Ron' });
+    await client
+      .patch(`/api/v1/hands/${handId}/players/${seat(2).playerId}`)
+      .send({ outcome: 'Ron' });
+    expect(await winRows(handId)).toEqual([]);
+
+    const res = await client
+      .post(`/api/v1/hands/${handId}/score-changes`)
+      .send({
+        updates: [
+          {
+            handPlayerResultId: seat(2).handPlayerResultId,
+            scoreChange: 39,
+            winner: true,
+          },
+          {
+            handPlayerResultId: seat(4).handPlayerResultId,
+            scoreChange: -39,
+            winner: false,
+          },
+        ],
+        winnerHandValue: null,
+      });
+    expect(res.status).toBe(200);
+
+    expect(await winRows(handId)).toEqual([
+      { winnerPlayerId: seat(2).playerId, handValue: 39, winType: 'Ron' },
+    ]);
+    const byPlayer = new Map(
+      (await resultRows(handId)).map((r) => [r.playerId, r]),
+    );
+    expect(byPlayer.get(seat(2).playerId)?.scoreChange).toBe(39);
+    expect(byPlayer.get(seat(4).playerId)?.scoreChange).toBe(-39);
+    expect(byPlayer.get(seat(1).playerId)?.scoreChange).toBe(0);
+  });
+
+  it('rejects a row from another hand with 404 and writes nothing', async () => {
+    const first = await bootstrapScratchHand();
+    const other = await bootstrapScratchHand();
+    const before = await resultRows(first.handId);
+
+    const res = await client
+      .post(`/api/v1/hands/${first.handId}/score-changes`)
+      .send({
+        updates: [
+          {
+            handPlayerResultId:
+              first.handPlayerBySeat.get(1)?.handPlayerResultId,
+            scoreChange: 25,
+            winner: false,
+          },
+          {
+            handPlayerResultId:
+              other.handPlayerBySeat.get(2)?.handPlayerResultId,
+            scoreChange: -25,
+            winner: false,
+          },
+        ],
+        winnerHandValue: null,
+      });
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Hand player result not found' });
+    expect(await resultRows(first.handId)).toEqual(before);
+  });
+
+  it('rejects duplicate handPlayerResultIds with 400', async () => {
+    const { handId, handPlayerBySeat } = await bootstrapScratchHand();
+    const id = handPlayerBySeat.get(1)?.handPlayerResultId;
+    const res = await client
+      .post(`/api/v1/hands/${handId}/score-changes`)
+      .send({
+        updates: [
+          { handPlayerResultId: id, scoreChange: 10, winner: false },
+          { handPlayerResultId: id, scoreChange: -10, winner: false },
+        ],
+        winnerHandValue: null,
+      });
+    expect(res.status).toBe(400);
   });
 });
 
